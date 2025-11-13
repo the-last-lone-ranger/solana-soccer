@@ -72,11 +72,15 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
   io.on('connection', (socket: AuthenticatedSocket) => {
     const walletAddress = socket.walletAddress!;
     console.log(`[Socket] Client connected: ${walletAddress}`);
+    
+    // Track which lobbies this socket is in
+    const joinedLobbies = new Set<string>();
 
     // Join lobby room
     socket.on('lobby:join', async (data: { lobbyId: string }) => {
       const { lobbyId } = data;
       socket.join(`lobby:${lobbyId}`);
+      joinedLobbies.add(lobbyId);
       console.log(`[Socket] ${walletAddress} joined lobby ${lobbyId}`);
 
       // Send current lobby state
@@ -90,7 +94,15 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
     socket.on('lobby:leave', async (data: { lobbyId: string }) => {
       const { lobbyId } = data;
       socket.leave(`lobby:${lobbyId}`);
+      joinedLobbies.delete(lobbyId);
       console.log(`[Socket] ${walletAddress} left lobby ${lobbyId}`);
+      
+      // Actually remove player from lobby in database
+      try {
+        await lobbyManager.leaveLobby(lobbyId, walletAddress);
+      } catch (error) {
+        console.error(`[Socket] Error removing ${walletAddress} from lobby ${lobbyId}:`, error);
+      }
     });
 
     // Player input (movement, jumping, etc.)
@@ -126,9 +138,20 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
       });
     });
 
-    // Disconnect
-    socket.on('disconnect', () => {
+    // Disconnect - remove player from all lobbies they're in
+    socket.on('disconnect', async () => {
       console.log(`[Socket] Client disconnected: ${walletAddress}`);
+      
+      // Remove player from all lobbies they were in
+      for (const lobbyId of joinedLobbies) {
+        try {
+          await lobbyManager.leaveLobby(lobbyId, walletAddress);
+          console.log(`[Socket] Removed ${walletAddress} from lobby ${lobbyId} on disconnect`);
+        } catch (error) {
+          console.error(`[Socket] Error removing ${walletAddress} from lobby ${lobbyId} on disconnect:`, error);
+        }
+      }
+      joinedLobbies.clear();
     });
   });
 
