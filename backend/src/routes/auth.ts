@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbQueries } from '../db/database.js';
+import db from '../db/database.js';
 import { generateJWT } from '../services/jwt.js';
 
 const router = Router();
@@ -55,24 +56,77 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     // For Google users, we'll use a synthetic wallet address format: "google_<googleId>"
     const syntheticWalletAddress = `google_${googleId}`;
     
-    // Check if user exists by google_id or synthetic wallet address
+    // Check if user exists by google_id
     let player = await dbQueries.getPlayerByGoogleId(googleId);
     
     if (!player) {
-      // Create new player
-      await dbQueries.createPlayerWithGoogle({
-        googleId,
-        email,
-        name,
-        picture,
-        syntheticWalletAddress,
-      });
-      player = await dbQueries.getPlayerByGoogleId(googleId);
+      // Check if synthetic wallet address already exists (from previous sign-in)
+      const existingPlayer = await dbQueries.getOrCreatePlayer(syntheticWalletAddress);
+      
+      // If player exists but doesn't have google_id set, update it
+      if (existingPlayer && existingPlayer.wallet_address === syntheticWalletAddress) {
+        try {
+          // Update existing player with Google info
+          await db.execute({
+            sql: `UPDATE players SET google_id = ?, email = ?, username = COALESCE(?, username), avatar_url = COALESCE(?, avatar_url), auth_type = 'google' WHERE wallet_address = ?`,
+            args: [googleId, email, name, picture, syntheticWalletAddress],
+          });
+          player = await dbQueries.getPlayerByGoogleId(googleId);
+        } catch (error: any) {
+          // If update fails (e.g., google_id already exists for another user), try to create new
+          console.error('[Google OAuth] Failed to update existing player:', error.message);
+          if (error.code === 'SQLITE_CONSTRAINT') {
+            // google_id already exists for another wallet_address - use that player instead
+            player = await dbQueries.getPlayerByGoogleId(googleId);
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // Create new player
+        try {
+          await dbQueries.createPlayerWithGoogle({
+            googleId,
+            email,
+            name,
+            picture,
+            syntheticWalletAddress,
+          });
+          player = await dbQueries.getPlayerByGoogleId(googleId);
+        } catch (error: any) {
+          // If creation fails due to UNIQUE constraint, player already exists
+          if (error.code === 'SQLITE_CONSTRAINT') {
+            console.log('[Google OAuth] Player already exists, fetching...');
+            player = await dbQueries.getPlayerByGoogleId(googleId);
+            if (!player) {
+              // Fallback: get by synthetic wallet address
+              const fallbackPlayer = await dbQueries.getOrCreatePlayer(syntheticWalletAddress);
+              player = {
+                wallet_address: fallbackPlayer.wallet_address,
+                username: fallbackPlayer.username,
+                avatar_url: fallbackPlayer.avatar_url,
+                created_at: fallbackPlayer.created_at,
+                updated_at: fallbackPlayer.updated_at || fallbackPlayer.created_at,
+                in_game_wallet_address: null,
+                encrypted_private_key: null,
+              };
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
     } else {
-      // Update avatar if changed
+      // Player exists - update avatar/email if changed
       if (picture && picture !== player.avatar_url) {
         await dbQueries.updatePlayer(player.wallet_address || syntheticWalletAddress, {
           avatarUrl: picture,
+        });
+      }
+      if (email && email !== (player as any).email) {
+        await db.execute({
+          sql: `UPDATE players SET email = ? WHERE wallet_address = ?`,
+          args: [email, player.wallet_address || syntheticWalletAddress],
         });
       }
     }
