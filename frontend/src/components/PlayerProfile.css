@@ -90,6 +90,87 @@
   color: #dc2626;
 }
 
+.player-profile-light .avatar-url-input,
+.player-profile-light .key-input {
+  background: #ffffff;
+  border-color: rgba(55, 53, 47, 0.16);
+  color: #37352f;
+}
+
+.player-profile-light .avatar-url-input:focus,
+.player-profile-light .key-input:focus {
+  border-color: #2383e2;
+  box-shadow: 0 0 0 2px rgba(35, 131, 226, 0.1);
+}
+
+.player-profile-light .save-avatar-btn,
+.player-profile-light .upload-avatar-btn,
+.player-profile-light .cancel-avatar-btn,
+.player-profile-light .save-key-btn,
+.player-profile-light .cancel-key-btn,
+.player-profile-light .edit-key-btn,
+.player-profile-light .equip-btn,
+.player-profile-light .unequip-btn {
+  background: #ffffff;
+  border-color: rgba(55, 53, 47, 0.16);
+  color: #37352f;
+}
+
+.player-profile-light .save-avatar-btn,
+.player-profile-light .save-key-btn {
+  background: #2383e2;
+  color: white;
+  border: none;
+}
+
+.player-profile-light .equip-btn.unequip {
+  background: #2383e2;
+  color: white;
+}
+
+.player-profile-light .upload-avatar-btn:hover,
+.player-profile-light .cancel-avatar-btn:hover,
+.player-profile-light .cancel-key-btn:hover,
+.player-profile-light .edit-key-btn:hover,
+.player-profile-light .equip-btn:hover:not(.unequip),
+.player-profile-light .unequip-btn:hover {
+  background: rgba(55, 53, 47, 0.08);
+  border-color: rgba(55, 53, 47, 0.24);
+}
+
+.player-profile-light .key-display {
+  background: #f7f6f3;
+  border-color: rgba(55, 53, 47, 0.16);
+  color: #37352f;
+}
+
+.player-profile-light .toggle-slider {
+  background-color: #f1f1ef;
+  border-color: rgba(55, 53, 47, 0.16);
+}
+
+.player-profile-light .toggle-slider:before {
+  background-color: #787774;
+}
+
+.player-profile-light .toggle-switch input:checked + .toggle-slider {
+  background-color: #2383e2;
+  border-color: #2383e2;
+}
+
+.player-profile-light .empty-inventory {
+  color: #787774;
+}
+
+.player-profile-light .loading,
+.player-profile-light .error {
+  color: #787774;
+}
+
+.player-profile-light .error {
+  color: #dc2626;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

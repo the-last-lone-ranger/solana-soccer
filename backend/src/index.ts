@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { openkitMiddleware } from './middleware/openkit.js';
 import gameRoutes from './routes/game.js';
 import lobbyRoutes from './routes/lobbies.js';
+import authRoutes from './routes/auth.js';
 import { setupSocketServer } from './services/socketServer.js';
 import { permanentLobbyManager } from './services/permanentLobbyManager.js';
 import { fileURLToPath } from 'url';
@@ -46,7 +47,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // Public routes (no authentication required)
-const publicRoutes = ['/health', '/leaderboard', '/username-check', '/rounds'];
+const publicRoutes = ['/health', '/leaderboard', '/username-check', '/rounds', '/users', '/auth/google/url'];
 
 // Apply OpenKit middleware conditionally - only for protected routes
 app.use('/api', (req, res, next) => {
@@ -70,7 +71,38 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
-  // Apply OpenKit middleware for protected routes (including POST /lobbies)
+  // GET /users is public (no auth required)
+  if (req.path === '/users' && req.method === 'GET') {
+    return next();
+  }
+  
+  // GET /auth/google/url is public (no auth required)
+  if (req.path === '/auth/google/url' && req.method === 'GET') {
+    return next();
+  }
+  
+  // GET /auth/google/callback is public (OAuth callback)
+  if (req.path === '/auth/google/callback' && req.method === 'GET') {
+    return next();
+  }
+  
+  // GET /matches/:matchId is public (no auth required)
+  if (req.path.startsWith('/matches/') && req.method === 'GET') {
+    return next();
+  }
+  
+  // GET /lobbies/:lobbyId is public (no auth required)
+  if (req.path.startsWith('/lobbies/') && req.method === 'GET') {
+    return next();
+  }
+  
+  // All GET endpoints are public (except /profile which needs auth for user-specific data)
+  // All POST/PUT/DELETE endpoints require auth (for playing the game)
+  if (req.method === 'GET' && req.path !== '/profile' && !req.path.startsWith('/auth/google/callback')) {
+    return next();
+  }
+  
+  // Apply OpenKit middleware for protected routes (POST/PUT/DELETE and GET /profile)
   openkitMiddleware(req, res, next);
 });
 
@@ -146,7 +178,8 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Mount game routes (they handle their own public/protected logic)
+// Mount routes (they handle their own public/protected logic)
+app.use('/api/auth', authRoutes);
 app.use('/api', gameRoutes);
 app.use('/api', lobbyRoutes);
 

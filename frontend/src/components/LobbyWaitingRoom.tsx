@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SocketClient } from '../services/socketClient.js';
+import { VoiceChatService } from '../services/voiceChat.js';
 import type { Lobby, PlayerPosition } from '@solana-defender/shared';
 import { useWallet } from '../contexts/WalletContext.js';
 import './LobbyWaitingRoom.css';
@@ -23,6 +24,19 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [lobby, setLobby] = useState<Lobby>(initialLobby);
   const [countdown, setCountdown] = useState<number | null>(initialLobby.countdownSeconds ?? null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const voiceChatRef = useRef<VoiceChatService | null>(null);
+  const keysPressedRef = useRef<Set<string>>(new Set());
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => {
+    if (!address) return false;
+    const saved = localStorage.getItem(`voice_settings_${address}`);
+    return saved ? JSON.parse(saved).enabled : false;
+  });
+  const [pushToTalkKey, setPushToTalkKey] = useState(() => {
+    if (!address) return 'v';
+    const saved = localStorage.getItem(`voice_settings_${address}`);
+    return saved ? JSON.parse(saved).pushToTalkKey || 'v' : 'v';
+  });
   
   // Ensure socket is connected and joined to lobby room
   useEffect(() => {
@@ -510,7 +524,19 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
         <div className="controls-hint">
           <p>🎮 Use Arrow Keys or WASD to move around!</p>
           <p>Spacebar or Up Arrow to jump</p>
+          {isVoiceEnabled && (
+            <p className="voice-hint">
+              🎤 Hold <kbd>{pushToTalkKey.toUpperCase()}</kbd> to talk
+              {isSpeaking && <span className="speaking-indicator"> 🔊 Speaking...</span>}
+            </p>
+          )}
         </div>
+        {isSpeaking && (
+          <div className="speaking-overlay">
+            <div className="speaking-pulse"></div>
+            <span className="speaking-text">🎤 SPEAKING</span>
+          </div>
+        )}
       </div>
       <div className="waiting-room-players">
         <h3>Players in Lobby ({lobby.players.length})</h3>

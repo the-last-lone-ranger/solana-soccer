@@ -37,8 +37,11 @@ async function initializeSchema() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS players (
       wallet_address TEXT PRIMARY KEY,
+      google_id TEXT UNIQUE,
       username TEXT,
       avatar_url TEXT,
+      email TEXT,
+      auth_type TEXT DEFAULT 'solana',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -56,6 +59,31 @@ async function initializeSchema() {
   try {
     await db.execute(`
       ALTER TABLE players ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Add Google auth columns if they don't exist
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN google_id TEXT UNIQUE;
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN email TEXT;
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN auth_type TEXT DEFAULT 'solana';
     `);
   } catch (e) {
     // Column already exists, ignore
@@ -362,6 +390,44 @@ export const dbQueries = {
       in_game_wallet_address: row.in_game_wallet_address as string | null,
       encrypted_private_key: row.encrypted_private_key as string | null,
     };
+  },
+
+  getPlayerByGoogleId: async (googleId: string): Promise<PlayerRow | null> => {
+    const result = await db.execute({
+      sql: 'SELECT * FROM players WHERE google_id = ?',
+      args: [googleId],
+    });
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      wallet_address: row.wallet_address as string,
+      username: row.username as string | null,
+      avatar_url: row.avatar_url as string | null,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string | null,
+      in_game_wallet_address: row.in_game_wallet_address as string | null,
+      encrypted_private_key: row.encrypted_private_key as string | null,
+    };
+  },
+
+  createPlayerWithGoogle: async (data: {
+    googleId: string;
+    email: string;
+    name: string;
+    picture: string;
+    syntheticWalletAddress: string;
+  }): Promise<void> => {
+    await db.execute({
+      sql: `
+        INSERT INTO players (wallet_address, google_id, username, avatar_url, email, auth_type)
+        VALUES (?, ?, ?, ?, ?, 'google')
+      `,
+      args: [data.syntheticWalletAddress, data.googleId, data.name, data.picture, data.email],
+    });
   },
 
   checkUsernameAvailable: async (username: string, excludeWalletAddress?: string): Promise<boolean> => {

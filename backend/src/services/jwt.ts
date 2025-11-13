@@ -7,6 +7,8 @@ const JWT_TTL_SECONDS = parseInt(process.env.OPENKIT_TTL_SECONDS || '1800'); // 
 
 export interface JWTPayload {
   address: string;
+  authType?: 'solana' | 'google';
+  googleId?: string;
   iat: number;
   exp: number;
   iss: string;
@@ -14,12 +16,14 @@ export interface JWTPayload {
 }
 
 /**
- * Generate a JWT token for a wallet address after successful OpenKit403 authentication
+ * Generate a JWT token for a wallet address after successful authentication
  */
-export function generateJWT(address: string): string {
+export function generateJWT(address: string, authType: 'solana' | 'google' = 'solana', googleId?: string): string {
   const now = Math.floor(Date.now() / 1000);
   const payload: JWTPayload = {
     address,
+    authType,
+    googleId,
     iat: now,
     exp: now + JWT_TTL_SECONDS,
     iss: JWT_ISSUER,
