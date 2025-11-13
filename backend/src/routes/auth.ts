@@ -119,9 +119,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     } else {
       // Player exists - update avatar/email if changed
       if (picture && picture !== player.avatar_url) {
-        await dbQueries.updatePlayer(player.wallet_address || syntheticWalletAddress, {
-          avatarUrl: picture,
-        });
+        await dbQueries.updatePlayerProfile(player.wallet_address || syntheticWalletAddress, undefined, picture);
       }
       if (email && email !== (player as any).email) {
         await db.execute({
@@ -134,9 +132,14 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     // Generate JWT token
     const jwtToken = generateJWT(player.wallet_address || syntheticWalletAddress, 'google', googleId);
 
+    console.log('[Google OAuth] ✅ Authentication successful, redirecting to frontend...');
+    console.log('[Google OAuth] Player wallet address:', player.wallet_address || syntheticWalletAddress);
+    
     // Redirect to frontend with token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/auth/callback?token=${jwtToken}&type=google`);
+    const redirectUrl = `${frontendUrl}/?token=${encodeURIComponent(jwtToken)}&type=google`;
+    console.log('[Google OAuth] Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
   } catch (error) {
     console.error('Google OAuth callback error:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
