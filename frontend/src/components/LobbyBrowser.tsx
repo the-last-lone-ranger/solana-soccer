@@ -321,11 +321,26 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                   )}
                 </div>
                 <div className="lobby-players-list">
-                  {lobby.players.map((player) => (
-                    <div key={player.walletAddress} className="player-tag">
-                      {player.username || `${player.walletAddress.slice(0, 6)}...`}
-                    </div>
-                  ))}
+                  {lobby.players.map((player) => {
+                    const displayName = player.username || `${player.walletAddress.slice(0, 6)}...`;
+                    const avatar = player.avatarUrl || (player.username ? player.username.slice(0, 2).toUpperCase() : player.walletAddress.slice(2, 4).toUpperCase());
+                    const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
+                    
+                    return (
+                      <div key={player.walletAddress} className="player-tag">
+                        <div className="player-avatar-small">
+                          {player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl) ? (
+                            <span className="avatar-emoji-tiny">{player.avatarUrl}</span>
+                          ) : player.avatarUrl ? (
+                            <img src={player.avatarUrl} alt={displayName} className="avatar-image-tiny" />
+                          ) : (
+                            <div className="avatar-initials-tiny">{avatar}</div>
+                          )}
+                        </div>
+                        <span className="player-name-small">{displayName}</span>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="lobby-actions">
                   {isJoined ? (
