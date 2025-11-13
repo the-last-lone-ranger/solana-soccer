@@ -51,8 +51,17 @@ const publicRoutes = ['/health', '/leaderboard', '/username-check', '/rounds', '
 
 // Apply OpenKit middleware conditionally - only for protected routes
 app.use('/api', (req, res, next) => {
-  // Skip OpenKit middleware for public routes
-  if (publicRoutes.includes(req.path)) {
+  // Log the path for debugging
+  console.log(`[Auth Check] ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`);
+  
+  // Skip OpenKit middleware for public routes (check both req.path and req.originalUrl)
+  const isPublicRoute = publicRoutes.includes(req.path) || 
+                         publicRoutes.some(route => req.originalUrl.includes(route)) ||
+                         req.path === '/users' ||
+                         req.originalUrl.includes('/api/users');
+  
+  if (isPublicRoute) {
+    console.log(`[Auth Check] ✅ Skipping auth for public route: ${req.path}`);
     return next();
   }
   
@@ -71,8 +80,9 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
-  // GET /users is public (no auth required)
-  if (req.path === '/users' && req.method === 'GET') {
+  // GET /users is public (no auth required) - explicit check
+  if ((req.path === '/users' || req.originalUrl.includes('/api/users')) && req.method === 'GET') {
+    console.log(`[Auth Check] ✅ Skipping auth for GET /users`);
     return next();
   }
   
@@ -103,6 +113,7 @@ app.use('/api', (req, res, next) => {
   }
   
   // Apply OpenKit middleware for protected routes (POST/PUT/DELETE and GET /profile)
+  console.log(`[Auth Check] 🔒 Applying auth middleware for protected route: ${req.path}`);
   openkitMiddleware(req, res, next);
 });
 
