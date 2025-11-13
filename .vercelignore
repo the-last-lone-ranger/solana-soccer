@@ -1,0 +1,9 @@
+node_modules
+backend
+shared
+*.log
+.env
+.env.local
+.DS_Store
+dist
+

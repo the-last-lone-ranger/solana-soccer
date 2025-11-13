@@ -1,0 +1,197 @@
+/* Inventory - Notion-Style with Theme Support */
+
+.inventory {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory h2 {
+  margin: 0 0 1.5rem 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.error-message {
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #dc2626;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+[data-theme='dark'] .error-message {
+  color: #ef4444;
+}
+
+.empty-inventory {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-tertiary);
+}
+
+.empty-inventory p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.inventory-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.inventory-item:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.inventory-item.equipped {
+  border-color: var(--accent-color);
+  background: var(--accent-light);
+}
+
+.inventory-item.common {
+  border-left: 3px solid #9ca3af;
+}
+
+.inventory-item.rare {
+  border-left: 3px solid #3b82f6;
+}
+
+.inventory-item.epic {
+  border-left: 3px solid #a855f7;
+}
+
+.inventory-item.legendary {
+  border-left: 3px solid #f59e0b;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.item-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  flex: 1;
+}
+
+.item-rarity {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.inventory-item.common .item-rarity {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9ca3af;
+}
+
+.inventory-item.rare .item-rarity {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.inventory-item.epic .item-rarity {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+}
+
+.inventory-item.legendary .item-rarity {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.item-type {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.75rem;
+  text-transform: capitalize;
+}
+
+.equipped-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--accent-color);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.equip-btn {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-primary);
+}
+
+.equip-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.equip-btn.unequip {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.equip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .inventory-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .inventory {
+    padding: 1rem;
+  }
+}
+

@@ -1,0 +1,120 @@
+.item-drop-notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: var(--color-bg-card);
+  border: 2px solid;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  min-width: 320px;
+  max-width: 400px;
+  z-index: var(--z-popover);
+  animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: var(--shadow-xl);
+}
+
+.item-drop-notification.common {
+  border-color: var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.item-drop-notification.rare {
+  border-color: var(--color-info);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, var(--color-bg-card) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+.item-drop-notification.epic {
+  border-color: var(--color-game-accent);
+  box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+  background: linear-gradient(135deg, var(--color-bg-card) 0%, rgba(139, 92, 246, 0.05) 100%);
+}
+
+.item-drop-notification.legendary {
+  border-color: var(--color-crown);
+  box-shadow: 0 15px 35px -5px rgba(251, 191, 36, 0.5);
+  background: linear-gradient(135deg, var(--color-bg-card) 0%, rgba(251, 191, 36, 0.1) 100%);
+  animation: pulse 2s infinite, slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.item-drop-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.item-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+  letter-spacing: -0.01em;
+}
+
+.item-rarity {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  background: var(--color-bg-secondary);
+}
+
+.item-description {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 30px rgba(255, 215, 0, 0.8);
+  }
+}
+

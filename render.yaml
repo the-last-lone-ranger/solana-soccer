@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: solana-defender
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: OPENKIT_ISSUER
+        value: solana-defender-api-v1
+      - key: OPENKIT_AUDIENCE
+        sync: false
+      - key: OPENKIT_TTL_SECONDS
+        value: 300
+      - key: FRONTEND_URL
+        sync: false
+

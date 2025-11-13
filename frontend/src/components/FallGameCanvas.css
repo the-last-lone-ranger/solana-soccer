@@ -1,0 +1,65 @@
+.fall-game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.fall-game-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.fall-game-header h2 {
+  margin: 0;
+  font-size: 2rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.fall-game-header p {
+  margin: 10px 0 0 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.fall-game-canvas-wrapper {
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  overflow: auto;
+  max-width: 100%;
+  max-height: 80vh;
+  position: relative;
+}
+
+.fall-game-canvas {
+  display: block;
+  border: 2px solid #333;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #7CB342 100%);
+  cursor: crosshair;
+  outline: none;
+}
+
+.fall-game-controls {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.fall-game-controls p {
+  margin: 5px 0;
+  color: #333;
+}
+
+.fall-game-controls strong {
+  color: #667eea;
+}
+
