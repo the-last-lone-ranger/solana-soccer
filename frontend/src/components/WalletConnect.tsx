@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWallet, type WalletProvider } from '../hooks/useWallet.js';
+import { GoogleSignIn } from './GoogleSignIn.js';
 import './WalletConnect.css';
 
 export function WalletConnect() {
@@ -44,6 +45,10 @@ export function WalletConnect() {
       {error && <div className="error-message">{error}</div>}
       
       <div className="wallet-buttons">
+        <GoogleSignIn />
+        <div className="divider">
+          <span>OR</span>
+        </div>
         <button
           onClick={() => handleConnect('phantom')}
           disabled={authenticating}

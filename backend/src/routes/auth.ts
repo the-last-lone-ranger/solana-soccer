@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbQueries } from '../db/database.js';
 import { generateJWT } from '../services/jwt.js';
-import { randomBytes } from 'crypto';
 
 const router = Router();
 
@@ -24,7 +23,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/api/auth/google/callback`,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`,
         grant_type: 'authorization_code',
       }),
     });
@@ -94,7 +93,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 // Get Google OAuth URL
 router.get('/google/url', (req: Request, res: Response) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:5173'}/api/auth/google/callback`;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`;
   
   if (!clientId) {
     return res.status(500).json({ error: 'Google OAuth not configured' });
