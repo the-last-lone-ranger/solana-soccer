@@ -1012,9 +1012,11 @@ export const dbQueries = {
           lp.wallet_address,
           lp.joined_at,
           p.username,
-          p.avatar_url
+          p.avatar_url,
+          COALESCE(e.crown_equipped, 0) as has_crown
         FROM lobby_players lp
         LEFT JOIN players p ON lp.wallet_address = p.wallet_address
+        LEFT JOIN equipment e ON lp.wallet_address = e.wallet_address
         WHERE lp.lobby_id = ?
         ORDER BY lp.joined_at ASC
       `,
@@ -1026,6 +1028,7 @@ export const dbQueries = {
       username: row.username as string | undefined,
       avatarUrl: row.avatar_url as string | undefined,
       joinedAt: row.joined_at as string,
+      hasCrown: (row.has_crown as number) === 1,
     }));
   },
 

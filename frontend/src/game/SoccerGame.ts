@@ -12,6 +12,7 @@ export interface SoccerPlayer {
   team: 'red' | 'blue';
   score: number;
   isSpeaking?: boolean; // Voice chat indicator
+  hasCrown?: boolean; // Crown indicator for leader
 }
 
 export interface Ball {
@@ -361,7 +362,7 @@ export class SoccerGame {
     }
   }
   
-  updateRemotePlayer(walletAddress: string, position: PlayerPosition): void {
+  updateRemotePlayer(walletAddress: string, position: PlayerPosition, hasCrown?: boolean): void {
     let remotePlayer = this.remotePlayers.get(walletAddress);
     
     if (!remotePlayer) {
@@ -378,6 +379,7 @@ export class SoccerGame {
         team,
         score: 0,
         isSpeaking: position.isSpeaking ?? false,
+        hasCrown: hasCrown ?? false,
       };
       this.remotePlayers.set(walletAddress, remotePlayer);
     } else {
@@ -392,6 +394,19 @@ export class SoccerGame {
       if (position.isSpeaking !== undefined) {
         remotePlayer.isSpeaking = position.isSpeaking;
       }
+      if (hasCrown !== undefined) {
+        remotePlayer.hasCrown = hasCrown;
+      }
+    }
+  }
+  
+  updatePlayerCrown(walletAddress: string, hasCrown: boolean): void {
+    const player = walletAddress === this.localPlayer.walletAddress 
+      ? this.localPlayer 
+      : this.remotePlayers.get(walletAddress);
+    
+    if (player) {
+      player.hasCrown = hasCrown;
     }
   }
 
@@ -649,6 +664,37 @@ export class SoccerGame {
     ctx.beginPath();
     ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Crown indicator - Gold outline with pulsing glow effect
+    if (player.hasCrown) {
+      const pulseTime = Date.now() / 1000;
+      const pulseGlow = 15 + Math.sin(pulseTime * 3) * 5; // Pulsing glow intensity
+      const pulseWidth = 5 + Math.sin(pulseTime * 3) * 1; // Pulsing outline width
+      
+      // Outer gold glow ring
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = pulseGlow;
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = pulseWidth;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS + 2, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Inner gold outline
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#FFA500';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS + 1, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Bright gold inner ring
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     
     // Outline with glow for local player
     if (isLocal) {

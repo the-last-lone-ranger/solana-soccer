@@ -92,23 +92,40 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 
 // Get Google OAuth URL
 router.get('/google/url', (req: Request, res: Response) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`;
-  
-  if (!clientId) {
-    return res.status(500).json({ error: 'Google OAuth not configured' });
+  try {
+    console.log('[Google OAuth] Getting OAuth URL...');
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+    
+    console.log('[Google OAuth] Client ID:', clientId ? 'Set' : 'Missing');
+    console.log('[Google OAuth] Redirect URI:', redirectUri);
+    
+    if (!clientId) {
+      console.error('[Google OAuth] Missing GOOGLE_CLIENT_ID environment variable');
+      return res.status(500).json({ 
+        error: 'Google OAuth not configured',
+        details: 'GOOGLE_CLIENT_ID environment variable is missing'
+      });
+    }
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'offline',
+      prompt: 'consent',
+    })}`;
+
+    console.log('[Google OAuth] Generated auth URL successfully');
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('[Google OAuth] Error generating URL:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate OAuth URL',
+      details: error instanceof Error ? error.message : String(error)
+    });
   }
-
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'openid email profile',
-    access_type: 'offline',
-    prompt: 'consent',
-  })}`;
-
-  res.json({ authUrl });
 });
 
 export default router;

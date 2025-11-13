@@ -209,6 +209,7 @@ export interface LobbyPlayer {
   username?: string;
   avatarUrl?: string;
   joinedAt: string;
+  hasCrown?: boolean;
 }
 
 export interface Lobby {
