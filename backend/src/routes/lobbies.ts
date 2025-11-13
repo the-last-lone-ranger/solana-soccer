@@ -48,6 +48,7 @@ router.get('/lobbies', async (req: Request, res: Response) => {
             username: p.username,
             avatarUrl: p.avatarUrl,
             joinedAt: p.joinedAt,
+            hasCrown: p.hasCrown,
           })),
           maxPlayers: lobby.maxPlayers,
           countdownSeconds: lobby.countdownSeconds,

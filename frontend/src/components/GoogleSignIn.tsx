@@ -16,15 +16,22 @@ export function GoogleSignIn() {
 
       // Get Google OAuth URL from backend
       const response = await fetch(`${API_BASE_URL}/api/auth/google/url`);
+      
       if (!response.ok) {
-        throw new Error('Failed to get Google OAuth URL');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.details || errorData.error || 'Failed to get Google OAuth URL');
       }
 
-      const { authUrl } = await response.json();
+      const data = await response.json();
+      
+      if (!data.authUrl) {
+        throw new Error('No auth URL returned from server');
+      }
       
       // Redirect to Google OAuth
-      window.location.href = authUrl;
+      window.location.href = data.authUrl;
     } catch (err: any) {
+      console.error('Google Sign-In error:', err);
       setError(err.message || 'Failed to initiate Google Sign-In');
       setLoading(false);
     }
