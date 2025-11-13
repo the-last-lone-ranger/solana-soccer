@@ -29,6 +29,12 @@ export interface LeaderboardEntry {
   levelReached: number;
   timestamp: string;
   rank: number;
+  gamesPlayed?: number;
+  highScore?: number;
+  roundsPlayed?: number;
+  roundsWon?: number;
+  totalSolWon?: number;
+  totalScore?: number;
 }
 
 export interface SubmitScoreRequest {
