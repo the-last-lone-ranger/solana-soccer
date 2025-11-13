@@ -30,6 +30,8 @@
   z-index: 1000;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .wallet-manager-modal {
@@ -38,10 +40,11 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   max-width: 500px;
-  width: 90%;
-  max-height: 90vh;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
   overflow-y: auto;
   position: relative;
+  margin: auto;
 }
 
 .wallet-manager-header {

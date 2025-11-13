@@ -107,9 +107,16 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
-  // All GET endpoints are public (except /profile which needs auth for user-specific data)
+  // GET /wallet/* routes require auth (user-specific wallet data)
+  if (req.path.startsWith('/wallet/') && req.method === 'GET') {
+    // Apply auth middleware for wallet routes
+    console.log(`[Auth Check] 🔒 Applying auth middleware for wallet route: ${req.path}`);
+    return openkitMiddleware(req, res, next);
+  }
+  
+  // All GET endpoints are public (except /profile and /wallet/* which need auth for user-specific data)
   // All POST/PUT/DELETE endpoints require auth (for playing the game)
-  if (req.method === 'GET' && req.path !== '/profile' && !req.path.startsWith('/auth/google/callback')) {
+  if (req.method === 'GET' && req.path !== '/profile' && !req.path.startsWith('/auth/google/callback') && !req.path.startsWith('/wallet/')) {
     return next();
   }
   

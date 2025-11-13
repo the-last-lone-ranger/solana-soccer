@@ -20,7 +20,12 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (address && showModal) {
+    // Check for Google auth or Solana wallet
+    const googleToken = localStorage.getItem('google_auth_token');
+    const googleAddress = localStorage.getItem('google_auth_address');
+    const isGoogleAuth = googleToken && googleAddress;
+    
+    if ((address || isGoogleAuth) && showModal) {
       loadWalletInfo();
     }
   }, [address, showModal]);
@@ -96,6 +101,16 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
     if (!addr) return 'Loading...';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
+
+  // Check if user is authenticated (Google or Solana wallet)
+  const googleToken = localStorage.getItem('google_auth_token');
+  const googleAddress = localStorage.getItem('google_auth_address');
+  const isGoogleAuth = googleToken && googleAddress;
+  const isAuthenticated = address || isGoogleAuth;
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
