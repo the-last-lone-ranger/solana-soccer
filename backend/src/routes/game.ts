@@ -84,17 +84,7 @@ router.post('/scores', requireAuth, async (req: Request, res: Response) => {
 router.get('/leaderboard', async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
-    const scores = await dbQueries.getLeaderboard(Math.min(limit, 100));
-
-    const leaderboard = scores.map((score, index) => ({
-      rank: index + 1,
-      walletAddress: score.wallet_address,
-      username: score.username,
-      avatarUrl: score.avatar_url,
-      score: score.score,
-      levelReached: score.level_reached,
-      timestamp: score.timestamp,
-    }));
+    const leaderboard = await dbQueries.getFullLeaderboard(Math.min(limit, 100));
 
     res.json({ leaderboard });
   } catch (error) {
