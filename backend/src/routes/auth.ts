@@ -24,7 +24,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || (req.protocol + '://' + req.get('host')) || 'http://localhost:3000'}/api/auth/google/callback`,
         grant_type: 'authorization_code',
       }),
     });
@@ -149,9 +149,12 @@ router.get('/google/url', (req: Request, res: Response) => {
   try {
     console.log('[Google OAuth] Getting OAuth URL...');
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.API_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+    // Use API_URL or construct from request if not set
+    const apiUrl = process.env.API_URL || (req.protocol + '://' + req.get('host')) || 'http://localhost:3000';
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${apiUrl}/api/auth/google/callback`;
     
     console.log('[Google OAuth] Client ID:', clientId ? 'Set' : 'Missing');
+    console.log('[Google OAuth] API URL:', apiUrl);
     console.log('[Google OAuth] Redirect URI:', redirectUri);
     
     if (!clientId) {

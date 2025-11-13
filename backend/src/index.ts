@@ -91,8 +91,9 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
-  // GET /auth/google/callback is public (OAuth callback)
-  if (req.path === '/auth/google/callback' && req.method === 'GET') {
+  // GET /auth/google/callback is public (OAuth callback) - MUST be before other checks
+  if ((req.path === '/auth/google/callback' || req.originalUrl.includes('/auth/google/callback')) && req.method === 'GET') {
+    console.log(`[Auth Check] ✅ Skipping auth for OAuth callback: ${req.path}`);
     return next();
   }
   
@@ -119,8 +120,8 @@ app.use('/api', (req, res, next) => {
 
 // Add auth status logging AND JWT token injection AFTER OpenKit middleware
 app.use('/api', (req, res, next) => {
-  // Skip logging for public routes
-  if (publicRoutes.includes(req.path)) {
+  // Skip logging for public routes (including OAuth callback)
+  if (publicRoutes.includes(req.path) || req.path === '/auth/google/callback' || req.originalUrl.includes('/auth/google/callback')) {
     return next();
   }
   
