@@ -65,28 +65,57 @@ async function initializeSchema() {
   }
 
   // Add Google auth columns if they don't exist
+  // Check if columns exist first to avoid errors
   try {
-    await db.execute(`
-      ALTER TABLE players ADD COLUMN google_id TEXT UNIQUE;
-    `);
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  
-  try {
-    await db.execute(`
-      ALTER TABLE players ADD COLUMN email TEXT;
-    `);
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  
-  try {
-    await db.execute(`
-      ALTER TABLE players ADD COLUMN auth_type TEXT DEFAULT 'solana';
-    `);
-  } catch (e) {
-    // Column already exists, ignore
+    const tableInfo = await db.execute({ sql: 'PRAGMA table_info(players)' });
+    const columns = tableInfo.rows.map((row: any) => row.name);
+    
+    if (!columns.includes('google_id')) {
+      console.log('[Database] Adding google_id column...');
+      // SQLite doesn't allow UNIQUE in ALTER TABLE ADD COLUMN, so add without UNIQUE first
+      await db.execute(`ALTER TABLE players ADD COLUMN google_id TEXT`);
+      // Then create unique index
+      try {
+        await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_google_id ON players(google_id) WHERE google_id IS NOT NULL`);
+      } catch (e: any) {
+        console.log('[Database] Index may already exist:', e.message);
+      }
+    }
+    
+    if (!columns.includes('email')) {
+      console.log('[Database] Adding email column...');
+      await db.execute(`ALTER TABLE players ADD COLUMN email TEXT`);
+    }
+    
+    if (!columns.includes('auth_type')) {
+      console.log('[Database] Adding auth_type column...');
+      await db.execute(`ALTER TABLE players ADD COLUMN auth_type TEXT DEFAULT 'solana'`);
+    }
+  } catch (e: any) {
+    console.error('[Database] Error adding Google auth columns:', e.message);
+    // Try individual ALTER statements as fallback (without UNIQUE)
+    try {
+      await db.execute(`ALTER TABLE players ADD COLUMN google_id TEXT`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_google_id ON players(google_id) WHERE google_id IS NOT NULL`);
+    } catch (e2: any) {
+      if (!e2.message?.includes('duplicate column') && !e2.message?.includes('already exists')) {
+        console.error('[Database] Failed to add google_id:', e2.message);
+      }
+    }
+    try {
+      await db.execute(`ALTER TABLE players ADD COLUMN email TEXT`);
+    } catch (e2: any) {
+      if (!e2.message?.includes('duplicate column')) {
+        console.error('[Database] Failed to add email:', e2.message);
+      }
+    }
+    try {
+      await db.execute(`ALTER TABLE players ADD COLUMN auth_type TEXT DEFAULT 'solana'`);
+    } catch (e2: any) {
+      if (!e2.message?.includes('duplicate column')) {
+        console.error('[Database] Failed to add auth_type:', e2.message);
+      }
+    }
   }
 
   // Add in-game wallet columns
