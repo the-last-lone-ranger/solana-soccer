@@ -186,7 +186,9 @@ export async function verifySolTransfer(
 
     // Verify the transaction is from the expected address
     const fromPubkey = new PublicKey(expectedFromAddress);
-    if (!tx.transaction.message.accountKeys.some(key => key.pubkey.equals(fromPubkey))) {
+    const accountKeys = tx.transaction.message.getAccountKeys();
+    const allAccountKeys = accountKeys.keySegments().flat();
+    if (!allAccountKeys.some((key: PublicKey) => key.equals(fromPubkey))) {
       return { valid: false, error: 'Transaction not from expected address' };
     }
 
@@ -200,8 +202,8 @@ export async function verifySolTransfer(
     }
 
     // Find the sender's account index
-    const senderIndex = tx.transaction.message.accountKeys.findIndex(
-      key => key.pubkey.equals(fromPubkey)
+    const senderIndex = allAccountKeys.findIndex(
+      (key: PublicKey) => key.equals(fromPubkey)
     );
 
     if (senderIndex === -1) {
@@ -229,8 +231,8 @@ export async function verifySolTransfer(
     // If escrow address is provided, verify funds went there
     if (escrowAddress) {
       const escrowPubkey = new PublicKey(escrowAddress);
-      const escrowIndex = tx.transaction.message.accountKeys.findIndex(
-        key => key.pubkey.equals(escrowPubkey)
+      const escrowIndex = allAccountKeys.findIndex(
+        (key: PublicKey) => key.equals(escrowPubkey)
       );
 
       if (escrowIndex === -1) {
