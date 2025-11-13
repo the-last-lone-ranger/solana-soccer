@@ -17,6 +17,79 @@
   gap: 2rem;
 }
 
+/* Light mode explicit styles */
+.player-profile-light {
+  color: #37352f;
+}
+
+.player-profile-light .profile-header,
+.player-profile-light .wallet-section,
+.player-profile-light .profile-stats-section,
+.player-profile-light .equipped-section,
+.player-profile-light .inventory-section,
+.player-profile-light .voice-settings-section {
+  background: #ffffff;
+  border-color: rgba(55, 53, 47, 0.16);
+  color: #37352f;
+}
+
+.player-profile-light h2,
+.player-profile-light h3,
+.player-profile-light .player-profile h2,
+.player-profile-light .player-profile h3 {
+  color: #37352f;
+}
+
+.player-profile-light .wallet-label,
+.player-profile-light .stat-label,
+.player-profile-light .setting-label > span:first-child,
+.player-profile-light .item-name,
+.player-profile-light .item-type {
+  color: #37352f;
+}
+
+.player-profile-light .wallet-value,
+.player-profile-light .stat-value,
+.player-profile-light .wallet-value {
+  color: #37352f;
+}
+
+.player-profile-light .text-secondary,
+.player-profile-light .wallet-label,
+.player-profile-light .stat-label,
+.player-profile-light .setting-description,
+.player-profile-light .item-type,
+.player-profile-light .item-rarity {
+  color: #787774;
+}
+
+.player-profile-light .wallet-card,
+.player-profile-light .stat-card,
+.player-profile-light .equipped-item,
+.player-profile-light .inventory-item,
+.player-profile-light .setting-row {
+  background: #f7f6f3;
+  border-color: rgba(55, 53, 47, 0.16);
+}
+
+.player-profile-light .wallet-card:hover,
+.player-profile-light .stat-card:hover,
+.player-profile-light .equipped-item:hover,
+.player-profile-light .inventory-item:hover,
+.player-profile-light .setting-row:hover {
+  background: rgba(55, 53, 47, 0.08);
+}
+
+.player-profile-light .avatar-initials-tiny {
+  color: #37352f;
+}
+
+.player-profile-light .error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { ApiClient } from '../services/api.js';
+import { useTheme } from '../contexts/ThemeContext.js';
 import './PlayerProfile.css';
 
 interface PlayerProfileProps {
@@ -26,6 +27,7 @@ interface EquippedItem {
 }
 
 export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) {
+  const { theme } = useTheme();
   const [profile, setProfile] = useState<any>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [equippedItems, setEquippedItems] = useState<EquippedItem[]>([]);
@@ -222,7 +224,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
   }
 
   return (
-    <div className="player-profile">
+    <div className={`player-profile player-profile-${theme}`}>
       <div className="profile-header">
         <div className="avatar-section">
           <div className="avatar-container">
