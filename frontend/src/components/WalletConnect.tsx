@@ -54,7 +54,11 @@ export function WalletConnect() {
           disabled={authenticating}
           className="wallet-btn phantom"
         >
-          <span>🦄</span>
+          <img 
+            src="https://play-lh.googleusercontent.com/H21urDlm2BSmTPpXUvdCNvMffMijHP-Xm65ZhAY4TlX-1RQR9jM9lBmHxph_JdoE8A" 
+            alt="Phantom"
+            className="wallet-icon"
+          />
           Phantom
         </button>
         <button

@@ -200,13 +200,18 @@
   box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3), 0 0 25px rgba(239, 68, 68, 0.2);
 }
 
-.wallet-btn span {
+.wallet-btn span,
+.wallet-btn .wallet-icon {
   font-size: clamp(1.25rem, 2.5vw, 1.5rem);
   transition: transform var(--transition-base);
   flex-shrink: 0;
+  width: clamp(1.25rem, 2.5vw, 1.5rem);
+  height: clamp(1.25rem, 2.5vw, 1.5rem);
+  object-fit: contain;
 }
 
-.wallet-btn:hover:not(:disabled) span {
+.wallet-btn:hover:not(:disabled) span,
+.wallet-btn:hover:not(:disabled) .wallet-icon {
   transform: scale(1.08) rotate(3deg);
 }
 
