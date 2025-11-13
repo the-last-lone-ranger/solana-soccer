@@ -5,6 +5,7 @@ import { ApiClient } from './services/api.js';
 import { WalletConnect } from './components/WalletConnect.js';
 import { GameCanvas } from './components/GameCanvas.js';
 import { Leaderboard } from './components/Leaderboard.js';
+import { Users } from './components/Users.js';
 import { PlayerProfile } from './components/PlayerProfile.js';
 import { TokenGate } from './components/TokenGate.js';
 import { GameOverModal } from './components/GameOverModal.js';
@@ -429,10 +430,7 @@ function App() {
               ) : currentPage === 'leaderboard' ? (
                 <Leaderboard apiClient={apiClient} />
               ) : currentPage === 'users' ? (
-                <div className="users-page">
-                  <h2>👥 Platform Users</h2>
-                  <p>Users page coming soon...</p>
-                </div>
+                <Users apiClient={apiClient} />
               ) : showMatchmaking ? (
                 <Matchmaking
                   apiClient={apiClient}

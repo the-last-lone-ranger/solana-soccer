@@ -103,6 +103,17 @@ router.get('/leaderboard', async (req: Request, res: Response) => {
   }
 });
 
+// Get all users (public)
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const users = await dbQueries.getAllUsers();
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
 // Get player profile (protected)
 router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {

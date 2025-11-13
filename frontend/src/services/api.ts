@@ -434,6 +434,16 @@ export class ApiClient {
     return response.json();
   }
 
+  async getUsers(): Promise<{ users: any[] }> {
+    const response = await fetch(`${API_BASE_URL}/api/users`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch users');
+    }
+
+    return response.json();
+  }
+
   async getProfile(): Promise<any> {
     const response = await this.authenticatedFetch('/api/profile');
     
