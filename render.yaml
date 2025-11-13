@@ -2,7 +2,7 @@ services:
   - type: web
     name: solana-defender
     env: node
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
