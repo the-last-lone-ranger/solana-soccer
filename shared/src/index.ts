@@ -1,3 +1,3 @@
-export * from './types';
-export { BetAmount, LobbyStatus } from './types';
+export * from './types.js';
+export { BetAmount, LobbyStatus } from './types.js';
 
