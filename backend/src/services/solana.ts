@@ -7,6 +7,10 @@ const connection = new Connection(RPC_URL, 'confirmed');
 const tokenCache = new Map<string, { result: boolean; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Cache for SOL balance checks (30 second TTL to reduce RPC rate limits)
+const balanceCache = new Map<string, { balance: number; timestamp: number }>();
+const BALANCE_CACHE_TTL = 30 * 1000; // 30 seconds
+
 export interface TokenGateConfig {
   requiredNftCollection?: string;
   requiredTokenMint?: string;
@@ -276,15 +280,42 @@ export async function verifySolTransfer(
 }
 
 /**
- * Get SOL balance for a wallet address
+ * Get SOL balance for a wallet address (with caching to reduce RPC rate limits)
  */
 export async function getSolBalance(walletAddress: string): Promise<number> {
+  // Check cache first
+  const cached = balanceCache.get(walletAddress);
+  if (cached && Date.now() - cached.timestamp < BALANCE_CACHE_TTL) {
+    return cached.balance;
+  }
+
   try {
     const publicKey = new PublicKey(walletAddress);
-    const balance = await connection.getBalance(publicKey);
-    return balance / 1_000_000_000; // Convert lamports to SOL
-  } catch (error) {
+    const balanceLamports = await connection.getBalance(publicKey);
+    const balance = balanceLamports / 1_000_000_000; // Convert lamports to SOL
+    
+    // Cache the result
+    balanceCache.set(walletAddress, {
+      balance,
+      timestamp: Date.now(),
+    });
+    
+    return balance;
+  } catch (error: any) {
     console.error('Error getting SOL balance:', error);
+    
+    // If we have a cached value and it's a rate limit error, return cached value
+    if (cached && error.message?.includes('429')) {
+      console.log(`[Solana] Rate limited, returning cached balance for ${walletAddress}`);
+      return cached.balance;
+    }
+    
+    // If we have a cached value (even if expired), return it on error
+    if (cached) {
+      console.log(`[Solana] Error fetching balance, returning cached value for ${walletAddress}`);
+      return cached.balance;
+    }
+    
     return 0;
   }
 }

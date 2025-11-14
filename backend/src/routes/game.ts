@@ -532,7 +532,28 @@ router.get('/wallet/balance', requireAuth, async (req: Request, res: Response) =
       balance,
       depositAddress,
     });
-  } catch (error) {
+  } catch (error: any) {
+    // Handle rate limit errors gracefully
+    if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+      console.warn('Rate limited on wallet balance check, returning cached value if available');
+      // Try to get cached balance
+      const depositAddress = await getInGameWalletAddress(req.openkitx403User!.address);
+      if (depositAddress) {
+        // getSolBalance will return cached value on error
+        try {
+          const cachedBalance = await getSolBalance(depositAddress);
+          return res.json({
+            balance: cachedBalance,
+            depositAddress,
+          });
+        } catch {
+          // If even cached fails, return 0
+          return res.json({ balance: 0, depositAddress });
+        }
+      }
+      return res.json({ balance: 0, depositAddress: null });
+    }
+    
     console.error('Error getting wallet balance:', error);
     res.status(500).json({ error: 'Failed to get wallet balance' });
   }

@@ -110,6 +110,7 @@ app.use('/api', (req, res, next) => {
   // GET /stats/* routes are public (no auth required)
   if (req.path.startsWith('/stats/') && req.method === 'GET') {
     console.log(`[Auth Check] ✅ Skipping auth for public stats route: ${req.path}`);
+    // Skip the auth logging middleware for stats routes
     return next();
   }
   
@@ -144,8 +145,8 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
-  // GET /matches, GET /lobbies, and GET /rounds are public (no auth required), but POST requires auth
-  const isPublicRoute = (req.path === '/matches' || req.path === '/lobbies' || req.path === '/rounds') && req.method === 'GET';
+  // GET /matches, GET /lobbies, GET /rounds, and GET /stats/* are public (no auth required)
+  const isPublicRoute = (req.path === '/matches' || req.path === '/lobbies' || req.path === '/rounds' || req.path.startsWith('/stats/')) && req.method === 'GET';
   
   if (isPublicRoute) {
     // Don't log auth status for public routes

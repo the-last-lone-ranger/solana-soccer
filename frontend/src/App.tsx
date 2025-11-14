@@ -412,20 +412,25 @@ function App() {
     return () => clearInterval(interval);
   }, [apiClient]);
 
-  // Load wallet balance when authenticated
+  // Load wallet balance when authenticated (reduced frequency to avoid rate limits)
   useEffect(() => {
     if (authenticated || localStorage.getItem('google_auth_token')) {
       const loadWalletBalance = async () => {
         try {
           const result = await apiClient.getWalletBalance();
           setWalletBalance(result.balance);
-        } catch (err) {
-          console.error('Failed to load wallet balance:', err);
+        } catch (err: any) {
+          // Don't log 429 errors as errors - they're rate limit warnings
+          if (err.message?.includes('429') || err.message?.includes('rate limit')) {
+            console.warn('Rate limited on wallet balance check, will retry later');
+          } else {
+            console.error('Failed to load wallet balance:', err);
+          }
         }
       };
       loadWalletBalance();
-      // Refresh every 5 seconds
-      const interval = setInterval(loadWalletBalance, 5000);
+      // Refresh every 30 seconds (reduced from 5s to avoid rate limits)
+      const interval = setInterval(loadWalletBalance, 30000);
       return () => clearInterval(interval);
     }
   }, [authenticated, apiClient]);
