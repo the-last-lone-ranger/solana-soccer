@@ -35,8 +35,12 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Failed to exchange authorization code' });
     }
 
-    const tokens = await tokenResponse.json();
+    const tokens = await tokenResponse.json() as { access_token?: string };
     const { access_token } = tokens;
+
+    if (!access_token) {
+      return res.status(400).json({ error: 'Failed to get access token from Google' });
+    }
 
     // Get user info from Google
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -49,8 +53,12 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Failed to fetch user info' });
     }
 
-    const userInfo = await userInfoResponse.json();
+    const userInfo = await userInfoResponse.json() as { id?: string; email?: string; name?: string; picture?: string };
     const { id: googleId, email, name, picture } = userInfo;
+
+    if (!googleId) {
+      return res.status(400).json({ error: 'Failed to get Google user ID' });
+    }
 
     // Create or get player with Google ID
     // For Google users, we'll use a synthetic wallet address format: "google_<googleId>"
@@ -109,6 +117,8 @@ router.get('/google/callback', async (req: Request, res: Response) => {
                 updated_at: fallbackPlayer.updated_at || fallbackPlayer.created_at,
                 in_game_wallet_address: null,
                 encrypted_private_key: null,
+                voice_enabled: fallbackPlayer.voice_enabled,
+                push_to_talk_key: fallbackPlayer.push_to_talk_key,
               };
             }
           } else {

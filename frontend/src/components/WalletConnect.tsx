@@ -24,8 +24,15 @@ export function WalletConnect() {
   if (connected && address) {
     return (
       <div className="wallet-connect">
+        <h2>Wallet Connected</h2>
         <div className="wallet-info">
-          <span className="wallet-provider">{provider}</span>
+          <div className="wallet-provider">
+            {provider === 'phantom' && '👻'}
+            {provider === 'backpack' && '🎒'}
+            {provider === 'solflare' && '🔥'}
+            {provider === 'google' && '🔐'}
+            <span>{provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Wallet'}</span>
+          </div>
           <span className="wallet-address">
             {address.slice(0, 4)}...{address.slice(-4)}
           </span>

@@ -20,6 +20,8 @@
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .lobby-header h2 {
@@ -36,11 +38,38 @@
   color: var(--text-primary);
   font-size: clamp(0.875rem, 1.5vw, 1rem);
   font-weight: 600;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1.25rem;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wallet-info-clickable {
+  cursor: pointer;
+  transition: all var(--transition-base);
+  user-select: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.wallet-info-clickable:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.wallet-info-clickable:active {
+  transform: translateY(0);
 }
 
 .error-message {
@@ -495,8 +524,20 @@
 
   .lobby-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 1rem;
+    padding: 1rem;
+  }
+
+  .lobby-header h2 {
+    width: 100%;
+    text-align: left;
+  }
+
+  .wallet-info {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 
   .create-buttons {
@@ -504,6 +545,23 @@
   }
 
   .create-btn {
+    width: 100%;
+  }
+
+  .lobby-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .lobby-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .join-btn,
+  .leave-btn,
+  .spectate-btn {
     width: 100%;
   }
 }

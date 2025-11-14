@@ -53,6 +53,8 @@ function App() {
   const matchPollIntervalRef = useRef<number | null>(null);
   const [totalSolBet, setTotalSolBet] = useState<number>(0);
   const hasRedirectedToProfileRef = useRef<boolean>(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [showWalletDialog, setShowWalletDialog] = useState(false);
   
   // Get lobbyId from route params for game route
   const { lobbyId: routeLobbyId } = useParams<{ lobbyId: string }>();
@@ -410,6 +412,24 @@ function App() {
     return () => clearInterval(interval);
   }, [apiClient]);
 
+  // Load wallet balance when authenticated
+  useEffect(() => {
+    if (authenticated || localStorage.getItem('google_auth_token')) {
+      const loadWalletBalance = async () => {
+        try {
+          const result = await apiClient.getWalletBalance();
+          setWalletBalance(result.balance);
+        } catch (err) {
+          console.error('Failed to load wallet balance:', err);
+        }
+      };
+      loadWalletBalance();
+      // Refresh every 5 seconds
+      const interval = setInterval(loadWalletBalance, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [authenticated, apiClient]);
+
   if (!connected || !address) {
     return (
       <div className="app">
@@ -440,13 +460,12 @@ function App() {
             <h1>⚽ Kicking It</h1>
             <p>Multiplayer Soccer with $SOCCER</p>
           </div>
-        </div>
-        <div className="total-sol-bet-counter">
-          <span className="counter-label">Total SOL Bet:</span>
-          <span className="counter-value">{totalSolBet.toFixed(2)} SOL</span>
+          <div className="total-sol-bet-counter">
+            <span className="counter-label">Total SOL Bet:</span>
+            <span className="counter-value">{totalSolBet.toFixed(2)} SOL</span>
+          </div>
         </div>
         <div className="header-actions">
-          {(authenticated || localStorage.getItem('google_auth_token')) && <WalletManager apiClient={apiClient} />}
           <button 
             className="theme-toggle-btn"
             onClick={toggleTheme}
@@ -475,6 +494,16 @@ function App() {
           >
             Platform Users
           </Link>
+          {(authenticated || localStorage.getItem('google_auth_token')) && (
+            <button
+              className="header-wallet-balance"
+              onClick={() => setShowWalletDialog(true)}
+              title="Click to manage wallet"
+            >
+              <span className="wallet-balance-icon">💰</span>
+              <span className="wallet-balance-text">{walletBalance.toFixed(4)} SOL</span>
+            </button>
+          )}
           {address && (
             <UserDropdown
               apiClient={apiClient}
@@ -483,6 +512,21 @@ function App() {
           )}
         </div>
       </div>
+
+      {(authenticated || localStorage.getItem('google_auth_token')) && (
+        <WalletManager
+          apiClient={apiClient}
+          isOpen={showWalletDialog}
+          showButton={false}
+          onClose={() => {
+            setShowWalletDialog(false);
+            // Refresh balance when dialog closes
+            apiClient.getWalletBalance().then(result => {
+              setWalletBalance(result.balance);
+            }).catch(() => {});
+          }}
+        />
+      )}
 
       <div className="app-content">
         <Routes>

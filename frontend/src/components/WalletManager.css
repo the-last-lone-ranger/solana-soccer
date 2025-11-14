@@ -187,12 +187,17 @@
 .form-group input {
   padding: 0.75rem;
   border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-family: var(--font-primary);
   transition: all var(--transition-base);
+}
+
+.form-group input::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
 }
 
 .form-group input:focus {

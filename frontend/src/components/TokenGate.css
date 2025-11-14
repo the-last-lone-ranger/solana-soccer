@@ -1,16 +1,17 @@
 /* Modern SaaS Card - Token Gate */
 .token-gate {
   padding: clamp(0.75rem, 1.5vw, 1rem);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   text-align: center;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-secondary);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(99, 102, 241, 0.15);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
   animation: fadeIn 0.3s ease-out;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .token-gate.premium {

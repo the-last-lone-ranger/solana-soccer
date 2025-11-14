@@ -5,7 +5,10 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .inventory h2 {

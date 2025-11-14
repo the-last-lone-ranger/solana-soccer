@@ -16,6 +16,10 @@
   width: 100%;
   box-sizing: border-box;
   max-width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 @keyframes fadeIn {
@@ -267,6 +271,21 @@
   box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 1;
+}
+
+.wallet-info .wallet-provider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(0.875rem, 1.5vw, 1rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.wallet-info .wallet-provider span {
+  text-transform: capitalize;
 }
 
 [data-theme='light'] .wallet-info {

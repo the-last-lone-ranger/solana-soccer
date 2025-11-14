@@ -463,6 +463,8 @@ export const dbQueries = {
       updated_at: row.updated_at as string | null,
       in_game_wallet_address: row.in_game_wallet_address as string | null,
       encrypted_private_key: row.encrypted_private_key as string | null,
+      voice_enabled: (row.voice_enabled as number | null) ?? null,
+      push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
     };
   },
 

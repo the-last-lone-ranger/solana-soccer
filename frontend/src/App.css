@@ -104,7 +104,7 @@ body {
 .app-header-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   flex: 1;
   min-width: 0;
 }
@@ -113,16 +113,16 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.375rem 0.875rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: clamp(0.8125rem, 1.5vw, 0.9375rem);
+  font-size: 0.8125rem;
   color: var(--text-primary);
-  margin: 0 1rem;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-base);
+  margin-left: 0.5rem;
 }
 
 .total-sol-bet-counter:hover {
@@ -172,6 +172,46 @@ body {
   gap: 0.5rem;
   flex-shrink: 0;
   align-items: center;
+}
+
+.header-wallet-balance {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: clamp(0.8125rem, 1.5vw, 0.9375rem);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  font-family: var(--font-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-wallet-balance:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.header-wallet-balance:active {
+  transform: translateY(0);
+}
+
+.wallet-balance-icon {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.wallet-balance-text {
+  color: var(--accent-color);
+  font-weight: 700;
+  font-family: var(--font-display);
 }
 
 .header-actions button {
@@ -255,13 +295,16 @@ body {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   position: sticky;
   top: calc(80px + 1.5rem);
-  height: fit-content;
+  height: calc(100vh - 120px);
   max-height: calc(100vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -703,6 +746,7 @@ body {
 
   .sidebar {
     position: static;
+    height: auto;
     max-height: none;
     order: 2;
   }
@@ -724,15 +768,15 @@ body {
     padding: 1rem;
   }
 
-  .total-sol-bet-counter {
-    margin: 0;
-    width: 100%;
-    justify-content: center;
-    order: 2;
-  }
-
   .app-header-content {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .total-sol-bet-counter {
+    margin: 0;
+    margin-left: 0;
+    flex-shrink: 0;
   }
 
   .header-actions {

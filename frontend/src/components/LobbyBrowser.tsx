@@ -316,9 +316,6 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     <div className="lobby-browser">
       <div className="lobby-header">
         <h2>🎮 Join a Lobby</h2>
-        <div className="wallet-info">
-          <span>Balance: {walletBalance.toFixed(4)} SOL</span>
-        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}

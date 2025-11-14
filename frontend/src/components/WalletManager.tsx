@@ -5,9 +5,12 @@ import './WalletManager.css';
 
 interface WalletManagerProps {
   apiClient: ApiClient;
+  isOpen?: boolean;
+  onClose?: () => void;
+  showButton?: boolean;
 }
 
-export function WalletManager({ apiClient }: WalletManagerProps) {
+export function WalletManager({ apiClient, isOpen, onClose, showButton = true }: WalletManagerProps) {
   const { address } = useWallet();
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
@@ -17,7 +20,17 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
   const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const [internalShowModal, setInternalShowModal] = useState(false);
+  
+  // Use external control if provided, otherwise use internal state
+  const showModal = isOpen !== undefined ? isOpen : internalShowModal;
+  const setShowModal = (value: boolean) => {
+    if (isOpen === undefined) {
+      setInternalShowModal(value);
+    } else if (onClose && !value) {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     // Check for Google auth or Solana wallet
@@ -28,7 +41,7 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
     if ((address || isGoogleAuth) && showModal) {
       loadWalletInfo();
     }
-  }, [address, showModal]);
+  }, [address, showModal, isOpen]);
 
   const loadWalletInfo = async () => {
     try {
@@ -114,13 +127,15 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
 
   return (
     <>
-      <button 
-        className="wallet-manager-btn"
-        onClick={() => setShowModal(true)}
-        title="View wallet & manage funds"
-      >
-        💰 Wallet
-      </button>
+      {showButton && (
+        <button 
+          className="wallet-manager-btn"
+          onClick={() => setShowModal(true)}
+          title="View wallet & manage funds"
+        >
+          💰 Wallet
+        </button>
+      )}
 
       {showModal && (
         <div className="wallet-manager-modal-overlay" onClick={() => setShowModal(false)}>
@@ -129,7 +144,13 @@ export function WalletManager({ apiClient }: WalletManagerProps) {
               <h2>💰 In-Game Wallet</h2>
               <button 
                 className="close-btn"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  // Refresh balance when dialog closes if we have a balance state
+                  if (balance !== null) {
+                    loadWalletInfo();
+                  }
+                }}
                 aria-label="Close"
               >
                 ×
