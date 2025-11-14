@@ -215,6 +215,11 @@ export enum BetAmount {
   Medium = 0.25,
 }
 
+export enum GameType {
+  Soccer = 'soccer',
+  FallGuys = 'fallguys',
+}
+
 export interface LobbyPlayer {
   walletAddress: string;
   username?: string;
@@ -226,6 +231,7 @@ export interface LobbyPlayer {
 export interface Lobby {
   id: string;
   betAmountSol: number;
+  gameType: GameType;
   status: LobbyStatus;
   players: LobbyPlayer[];
   maxPlayers?: number; // Optional max players per lobby
@@ -237,6 +243,7 @@ export interface Lobby {
 
 export interface CreateLobbyRequest {
   betAmountSol: number; // 0 (free), 0.05, or 0.25
+  gameType: GameType; // 'soccer' or 'fallguys'
 }
 
 export interface CreateLobbyResponse {

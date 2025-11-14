@@ -16,7 +16,8 @@ import { LandingPage } from './components/LandingPage.js';
 import { FirstTimeSetup } from './components/FirstTimeSetup.js';
 import { Matchmaking } from './components/Matchmaking.js';
 import { LobbyBrowser } from './components/LobbyBrowser.js';
-import { SoccerGameCanvas } from './components/SoccerGameCanvas.js';
+import { FallGuysGameCanvas } from './components/FallGuysGameCanvas.js';
+import { FallGuysGame3D } from './components/FallGuysGame3D.js';
 import { LobbyWaitingRoomPage } from './pages/LobbyWaitingRoomPage.js';
 import { SpectateLobbyPage } from './pages/SpectateLobbyPage.js';
 import { WalletManager } from './components/WalletManager.js';
@@ -24,11 +25,13 @@ import { Inventory } from './components/Inventory.js';
 import { RecentRounds } from './components/RecentRounds.js';
 import { UserDropdown } from './components/UserDropdown.js';
 import { GameResultsDialog } from './components/GameResultsDialog.js';
+import { PodiumResults } from './components/PodiumResults.js';
 import { LoadingSpinner } from './components/LoadingSpinner.js';
+import { GamesPage } from './components/GamesPage.js';
 import { VoiceChatService } from './services/voiceChat.js';
 import type { GameStats } from './game/Game.js';
 import type { GameItem, Match, Lobby } from '@solana-defender/shared';
-import type { GameResult } from './game/SoccerGame.js';
+import type { GameResult } from './game/FallGuysGame.js';
 import { SocketClient } from './services/socketClient.js';
 import './App.css';
 
@@ -250,40 +253,10 @@ function App() {
     lobby: Lobby;
   } | null>(null);
 
-  const handleSoccerGameEnd = async (results: GameResult[]) => {
-    console.log('Soccer game ended with results:', results);
-    
-    // Submit results to backend
-    if (currentLobby && results.length > 0) {
-      try {
-        const response = await apiClient.submitLobbyResults(currentLobby.id, results);
-        console.log('Results submitted:', response);
-        
-        // Show results dialog if we have winner information
-        if (response.winners !== undefined && response.losers !== undefined) {
-          setGameResults({
-            winningTeam: response.winningTeam as 'red' | 'blue' | null,
-            redScore: response.redScore,
-            blueScore: response.blueScore,
-            winners: response.winners || [],
-            losers: response.losers || [],
-            betAmountSol: response.betAmountSol || 0,
-            totalPot: response.totalPot || 0,
-            payoutPerPlayer: response.payoutPerPlayer || 0,
-            lobby: currentLobby,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to submit results:', error);
-        // Still reset game state even if submission failed
-      }
-    } else {
-      // No lobby or results - just reset
-      setIsLobbyGame(false);
-      setCurrentLobby(null);
-      setLobbySocketClient(null);
-      setShowGame(false);
-    }
+  const handleFallGuysGameEnd = async (results: GameResult[]) => {
+    console.log('Fall Guys game ended with results:', results);
+    // Results are now recorded automatically when podium appears
+    // No need to show dialog - just keep showing the podium
   };
 
   const handleCloseModal = () => {
@@ -481,9 +454,9 @@ function App() {
     return () => clearInterval(interval);
   }, [apiClient]);
 
-  // Load wallet balance when authenticated (reduced frequency to avoid rate limits)
+  // Load wallet balance when connected (reduced frequency to avoid rate limits)
   useEffect(() => {
-    if (authenticated || localStorage.getItem('google_auth_token')) {
+    if ((connected && address) || localStorage.getItem('google_auth_token')) {
       const loadWalletBalance = async () => {
         try {
           const result = await apiClient.getWalletBalance();
@@ -502,9 +475,62 @@ function App() {
       const interval = setInterval(loadWalletBalance, 30000);
       return () => clearInterval(interval);
     }
-  }, [authenticated, apiClient]);
+  }, [connected, address, apiClient]);
 
+  // Check if current route is public (doesn't require wallet connection)
+  const isPublicRoute = location.pathname === '/games';
+  
+  // Allow public routes without wallet connection
   if (!connected || !address) {
+    if (isPublicRoute) {
+      // Render games page without wallet connection
+      return (
+        <div className="app">
+          <div className="app-header">
+            <div className="app-header-content">
+              <div>
+                <h1>Kicking It</h1>
+                <p>Multiplayer Gaming Platform</p>
+              </div>
+            </div>
+            <div className="header-actions">
+              <button 
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
+              <Link 
+                to="/games" 
+                className="nav-link"
+                style={{ fontWeight: location.pathname === '/games' ? 'bold' : 'normal' }}
+              >
+                Games
+              </Link>
+            </div>
+          </div>
+          <div className="app-content games-page-content">
+            <AnimatePresence mode="wait">
+              <Routes location={location} key={location.pathname}>
+                <Route path="/games" element={
+                  <motion.div
+                    className="games-page-wrapper"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <GamesPage />
+                  </motion.div>
+                } />
+              </Routes>
+            </AnimatePresence>
+          </div>
+        </div>
+      );
+    }
+    // For non-public routes, show landing page
     return (
       <div className="app">
         <LandingPage />
@@ -532,10 +558,9 @@ function App() {
     <div className="app">
       <div className="app-header">
         <div className="app-header-content">
-          <span className="emoji">🎮</span>
           <div>
-            <h1>⚽ Kicking It</h1>
-            <p>Multiplayer Soccer with $SOCCER</p>
+            <h1>Kicking It</h1>
+            <p>Multiplayer Gaming Platform</p>
           </div>
           <div className="total-sol-bet-counter">
             <span className="counter-label">Total SOL Bet:</span>
@@ -571,7 +596,14 @@ function App() {
           >
             Platform Users
           </Link>
-          {(authenticated || localStorage.getItem('google_auth_token')) && (
+          <Link 
+            to="/games" 
+            className="nav-link"
+            style={{ fontWeight: location.pathname === '/games' ? 'bold' : 'normal' }}
+          >
+            Games
+          </Link>
+          {(connected && address) || localStorage.getItem('google_auth_token') ? (
             <button
               className="header-wallet-balance"
               onClick={() => setShowWalletDialog(true)}
@@ -580,7 +612,7 @@ function App() {
               <span className="wallet-balance-icon">💰</span>
               <span className="wallet-balance-text">{walletBalance.toFixed(4)} SOL</span>
             </button>
-          )}
+          ) : null}
           {address && (
             <UserDropdown
               apiClient={apiClient}
@@ -590,7 +622,7 @@ function App() {
         </div>
       </div>
 
-      {(authenticated || localStorage.getItem('google_auth_token')) && (
+      {((connected && address) || localStorage.getItem('google_auth_token')) && (
         <WalletManager
           apiClient={apiClient}
           isOpen={showWalletDialog}
@@ -628,7 +660,7 @@ function App() {
                     <div className="token-benefits-content">
                       <div className="token-benefits-icon">⚽</div>
                       <div className="token-benefits-text">
-                        <h2 className="token-benefits-title">🎯 OWN $SOCCER TOKEN = HIGHER REWARDS!</h2>
+                        <h2 className="token-benefits-title">🎯 OWN $KICK TOKEN = HIGHER REWARDS!</h2>
                         <p className="token-benefits-subtitle">
                           Token holders get <strong>2.5x better item drop rates</strong> and exclusive rewards!
                         </p>
@@ -671,7 +703,7 @@ function App() {
                   <div className="creator-rewards-banner">
                     <div className="creator-rewards-icon">💰</div>
                     <div className="creator-rewards-text">
-                      <strong>30% of creator rewards go to $SOCCER token holders!</strong>
+                      <strong>30% of creator rewards go to $KICK token holders!</strong>
                       <span> Holders receive regular rewards from platform revenue.</span>
                     </div>
                   </div>
@@ -679,7 +711,7 @@ function App() {
                   <div className="game-menu-hero">
                     <div className="hero-icon">⚽</div>
                     <h1 className="hero-title">Kicking It</h1>
-                    <p className="hero-subtitle">Compete in real-time multiplayer matches and earn $SOCCER!</p>
+                    <p className="hero-subtitle">Compete in real-time multiplayer matches and earn $KICK!</p>
                   </div>
                   <div className="game-features">
                     <div className="feature-card">
@@ -740,7 +772,7 @@ function App() {
             </motion.div>
           } />
           <Route path="/lobby/:lobbyId" element={
-            <div className="app-content" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="app-content" style={{ gridTemplateColumns: '1fr', width: '100vw', maxWidth: '100vw', margin: 0, padding: 0 }}>
               <LobbyWaitingRoomPage
                 apiClient={apiClient}
                 onLobbyStart={handleLobbyStart}
@@ -792,6 +824,19 @@ function App() {
               </div>
             </motion.div>
           } />
+          <Route path="/games" element={
+            <motion.div
+              className="games-page-wrapper"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="app-content games-page-content">
+                <GamesPage />
+              </div>
+            </motion.div>
+          } />
           <Route path="/profile/:walletAddress" element={
             <UserProfilePage apiClient={apiClient} />
           } />
@@ -812,10 +857,10 @@ function App() {
           } />
           <Route path="/game/:lobbyId" element={
             isLobbyGame && currentLobby && lobbySocketClient ? (
-              <SoccerGameCanvas
+              <FallGuysGame3D
                 lobby={currentLobby}
                 socketClient={lobbySocketClient}
-                onGameEnd={handleSoccerGameEnd}
+                onGameEnd={handleFallGuysGameEnd}
                 apiClient={apiClient}
               />
             ) : (
@@ -841,27 +886,7 @@ function App() {
             />
           )}
 
-          {gameResults && (
-            <GameResultsDialog
-              winningTeam={gameResults.winningTeam}
-              redScore={gameResults.redScore}
-              blueScore={gameResults.blueScore}
-              winners={gameResults.winners}
-              losers={gameResults.losers}
-              betAmountSol={gameResults.betAmountSol}
-              totalPot={gameResults.totalPot}
-              payoutPerPlayer={gameResults.payoutPerPlayer}
-              lobby={gameResults.lobby}
-              onClose={() => {
-                setGameResults(null);
-                // Reset game state after closing dialog
-                setIsLobbyGame(false);
-                setCurrentLobby(null);
-                setLobbySocketClient(null);
-                setShowGame(false);
-              }}
-            />
-          )}
+          {/* No winner dialog - podium is shown in-game */}
         </div>
       );
     }

@@ -91,8 +91,9 @@
 }
 
 [data-theme='light'] .round-card {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .round-card::before {
@@ -161,16 +162,34 @@
   transition: all var(--transition-base);
 }
 
+[data-theme='light'] .round-bet {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.25);
+  color: #4f46e5;
+}
+
 .round-bet.free {
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.2);
   color: #10b981;
 }
 
+[data-theme='light'] .round-bet.free {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
 .round-bet.paid {
   background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%);
   border-color: rgba(251, 191, 36, 0.3);
   color: #fbbf24;
+}
+
+[data-theme='light'] .round-bet.paid {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #d97706;
 }
 
 .bet-icon {
@@ -184,6 +203,10 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
+}
+
+[data-theme='light'] .round-time {
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .time-icon {
@@ -208,14 +231,28 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+[data-theme='light'] .team-section {
+  background: rgba(0, 0, 0, 0.02);
+}
+
 .team-section.red {
   border-color: rgba(239, 68, 68, 0.2);
   background: rgba(239, 68, 68, 0.05);
 }
 
+[data-theme='light'] .team-section.red {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .team-section.blue {
   border-color: rgba(59, 130, 246, 0.2);
   background: rgba(59, 130, 246, 0.05);
+}
+
+[data-theme='light'] .team-section.blue {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .team-section.winner {
@@ -230,10 +267,22 @@
   box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
 }
 
+[data-theme='light'] .team-section.winner.red {
+  border-color: #dc2626;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
+}
+
 .team-section.winner.blue {
   border-color: #3b82f6;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
   box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+[data-theme='light'] .team-section.winner.blue {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
 }
 
 @keyframes winnerPulse {
@@ -272,11 +321,25 @@
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
 
+[data-theme='light'] .team-badge.red {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
 .team-badge.blue {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%);
   color: #3b82f6;
   border: 1px solid rgba(59, 130, 246, 0.4);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme='light'] .team-badge.blue {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.25) 100%);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.5);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .winner-indicator {
@@ -294,6 +357,13 @@
   letter-spacing: 0.05em;
   box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
   animation: winnerGlow 2s ease-in-out infinite;
+}
+
+[data-theme='light'] .winner-indicator {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(245, 158, 11, 0.3) 100%);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #d97706;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
 }
 
 @keyframes winnerGlow {
@@ -333,8 +403,8 @@
 }
 
 [data-theme='light'] .round-winners-section {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .winners-label {
@@ -366,6 +436,13 @@
   color: #fbbf24;
   margin-left: auto;
   box-shadow: 0 2px 6px rgba(251, 191, 36, 0.2);
+}
+
+[data-theme='light'] .exp-gained-badge {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #d97706;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
 }
 
 .exp-icon {
@@ -493,6 +570,11 @@
   flex-wrap: wrap;
 }
 
+[data-theme='light'] .round-stats {
+  color: rgba(0, 0, 0, 0.65);
+  border-top-color: rgba(0, 0, 0, 0.1);
+}
+
 .stat-item {
   display: flex;
   align-items: center;
@@ -503,6 +585,10 @@
 .stat-item.winners-stat {
   color: #fbbf24;
   font-weight: 600;
+}
+
+[data-theme='light'] .stat-item.winners-stat {
+  color: #d97706;
 }
 
 .stat-icon {

@@ -7,7 +7,9 @@ import { permanentLobbyManager } from '../services/permanentLobbyManager.js';
 import { getOrCreateInGameWallet, getInGameWalletKeypair, getInGameWalletAddress } from '../services/wallet.js';
 import { getSolBalance } from '../services/solana.js';
 import { calculateExpGain, addExp } from '../services/expSystem.js';
-import { BetAmount, LobbyStatus, CreateLobbyRequest, CreateLobbyResponse, JoinLobbyRequest, JoinLobbyResponse } from '@solana-defender/shared';
+import { generateItemDrop } from '../services/items.js';
+import { getTokenHoldings, checkKickItTokenHolder } from '../services/solana.js';
+import { BetAmount, GameType, LobbyStatus, CreateLobbyRequest, CreateLobbyResponse, JoinLobbyRequest, JoinLobbyResponse } from '@solana-defender/shared';
 import { Connection, Transaction, SystemProgram, sendAndConfirmTransaction } from '@solana/web3.js';
 import { randomUUID } from 'crypto';
 
@@ -17,8 +19,9 @@ const router = Router();
 router.get('/lobbies', async (req: Request, res: Response) => {
   try {
     console.log('[Lobbies] GET /lobbies - query:', req.query);
-    const { betAmount } = req.query;
+    const { betAmount, gameType } = req.query;
     const betAmountSol = betAmount ? parseFloat(betAmount as string) : undefined;
+    const gameTypeFilter = gameType as string | undefined;
 
     // Validate bet amount if provided
     if (betAmountSol !== undefined) {
@@ -29,11 +32,20 @@ router.get('/lobbies', async (req: Request, res: Response) => {
       }
     }
 
+    // Validate game type if provided
+    if (gameTypeFilter !== undefined) {
+      const validGameTypes = [GameType.Soccer, GameType.FallGuys];
+      if (!validGameTypes.includes(gameTypeFilter as GameType)) {
+        console.log('[Lobbies] Invalid game type:', gameTypeFilter);
+        return res.status(400).json({ error: 'Invalid game type' });
+      }
+    }
+
     // Ensure permanent lobbies exist before fetching
     await permanentLobbyManager.checkAndMaintainPermanentLobbies();
 
-    console.log('[Lobbies] Fetching lobbies with betAmountSol:', betAmountSol);
-    const lobbies = await dbQueries.getAvailableLobbies(betAmountSol);
+    console.log('[Lobbies] Fetching lobbies with betAmountSol:', betAmountSol, 'gameType:', gameTypeFilter);
+    const lobbies = await dbQueries.getAvailableLobbies(betAmountSol, gameTypeFilter);
     console.log('[Lobbies] Found lobbies:', lobbies.length);
 
     // Get player counts for each lobby
@@ -44,6 +56,7 @@ router.get('/lobbies', async (req: Request, res: Response) => {
         return {
           id: lobby.id,
           betAmountSol: lobby.betAmountSol,
+          gameType: lobby.gameType || GameType.Soccer,
           status: lobby.status,
           players: players.map((p) => ({
             walletAddress: p.walletAddress,
@@ -100,13 +113,22 @@ router.get('/lobbies/:lobbyId', async (req: Request, res: Response) => {
 router.post('/lobbies', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.openkitx403User!;
-    const { betAmountSol }: CreateLobbyRequest = req.body;
+    const { betAmountSol, gameType }: CreateLobbyRequest = req.body;
 
     // Validate bet amount
     const validBetAmounts = [BetAmount.Free, BetAmount.Low, BetAmount.Medium];
     if (!validBetAmounts.includes(betAmountSol)) {
       return res.status(400).json({ 
         error: `Invalid bet amount. Must be one of: ${validBetAmounts.join(', ')} SOL` 
+      });
+    }
+
+    // Validate game type
+    const validGameTypes = [GameType.Soccer, GameType.FallGuys];
+    const lobbyGameType = gameType || GameType.Soccer;
+    if (!validGameTypes.includes(lobbyGameType)) {
+      return res.status(400).json({ 
+        error: `Invalid game type. Must be one of: ${validGameTypes.join(', ')}` 
       });
     }
 
@@ -126,7 +148,7 @@ router.post('/lobbies', requireAuth, async (req: Request, res: Response) => {
     }
 
     // Create lobby
-    const lobbyId = await lobbyManager.createLobby(betAmountSol);
+    const lobbyId = await lobbyManager.createLobby(betAmountSol, lobbyGameType);
     
     // Join the creator to the lobby
     await lobbyManager.joinLobby(lobbyId, user.address);
@@ -139,6 +161,7 @@ router.post('/lobbies', requireAuth, async (req: Request, res: Response) => {
       lobby: {
         id: lobby.id,
         betAmountSol: lobby.betAmountSol,
+        gameType: lobby.gameType || lobbyGameType,
         status: lobby.status as LobbyStatus,
         players: lobby.players,
         maxPlayers: lobby.maxPlayers,
@@ -263,6 +286,139 @@ router.post('/lobbies/:lobbyId/results', requireAuth, async (req: Request, res: 
       return res.status(404).json({ error: 'Lobby not found' });
     }
 
+    // Check if lobby is already completed - prevent duplicate submissions
+    if (lobby.status === 'completed') {
+      console.log(`[Lobbies] Lobby ${lobbyId} is already completed, ignoring duplicate submission`);
+      // Return existing results
+      const existingResultsData = await db.execute({
+        sql: `
+          SELECT 
+            lr.wallet_address,
+            lr.final_score,
+            lr.team,
+            lr.won,
+            p.username,
+            p.avatar_url
+          FROM lobby_results lr
+          LEFT JOIN players p ON lr.wallet_address = p.wallet_address
+          WHERE lr.lobby_id = ?
+        `,
+        args: [lobbyId],
+      });
+      
+      const winners = existingResultsData.rows
+        .filter((r: any) => r.won === 1)
+        .map((r: any) => ({
+          walletAddress: r.wallet_address as string,
+          username: r.username as string | null,
+          avatarUrl: r.avatar_url as string | null,
+          team: r.team as string,
+          score: r.final_score as number,
+          payoutAmount: 0,
+        }));
+      
+      const losers = existingResultsData.rows
+        .filter((r: any) => r.won === 0)
+        .map((r: any) => ({
+          walletAddress: r.wallet_address as string,
+          username: r.username as string | null,
+          avatarUrl: r.avatar_url as string | null,
+          team: r.team as string,
+          score: r.final_score as number,
+          payoutAmount: 0,
+        }));
+      
+      const redScore = existingResultsData.rows
+        .filter((r: any) => r.team === 'red')
+        .reduce((sum: number, r: any) => sum + (r.final_score as number), 0);
+      const blueScore = existingResultsData.rows
+        .filter((r: any) => r.team === 'blue')
+        .reduce((sum: number, r: any) => sum + (r.final_score as number), 0);
+      const winningTeam = redScore > blueScore ? 'red' : blueScore > redScore ? 'blue' : null;
+      
+      return res.json({
+        success: true,
+        winningTeam,
+        redScore,
+        blueScore,
+        winners,
+        losers,
+        betAmountSol: lobby.betAmountSol,
+        totalPot: lobby.betAmountSol * existingResultsData.rows.length,
+        payoutPerPlayer: 0,
+      });
+    }
+
+    // Check if results have already been submitted for this lobby
+    // This prevents duplicate submissions when multiple clients submit results simultaneously
+    const existingResults = await db.execute({
+      sql: 'SELECT COUNT(*) as count FROM lobby_results WHERE lobby_id = ?',
+      args: [lobbyId],
+    });
+    const resultCount = existingResults.rows[0]?.count as number || 0;
+    
+    if (resultCount > 0) {
+      console.log(`[Lobbies] Results already submitted for lobby ${lobbyId}, ignoring duplicate submission`);
+      // Return existing results instead of processing again
+      const existingResultsData = await db.execute({
+        sql: `
+          SELECT 
+            lr.wallet_address,
+            lr.final_score,
+            lr.team,
+            lr.won,
+            p.username,
+            p.avatar_url
+          FROM lobby_results lr
+          LEFT JOIN players p ON lr.wallet_address = p.wallet_address
+          WHERE lr.lobby_id = ?
+        `,
+        args: [lobbyId],
+      });
+      
+      const winners = existingResultsData.rows
+        .filter((r: any) => r.won === 1)
+        .map((r: any) => ({
+          walletAddress: r.wallet_address as string,
+          username: r.username as string | null,
+          avatarUrl: r.avatar_url as string | null,
+          team: r.team as string,
+          score: r.final_score as number,
+          payoutAmount: 0,
+        }));
+      
+      const losers = existingResultsData.rows
+        .filter((r: any) => r.won === 0)
+        .map((r: any) => ({
+          walletAddress: r.wallet_address as string,
+          username: r.username as string | null,
+          avatarUrl: r.avatar_url as string | null,
+          team: r.team as string,
+          score: r.final_score as number,
+          payoutAmount: 0,
+        }));
+      
+      const redScore = existingResultsData.rows
+        .filter((r: any) => r.team === 'red')
+        .reduce((sum: number, r: any) => sum + (r.final_score as number), 0);
+      const blueScore = existingResultsData.rows
+        .filter((r: any) => r.team === 'blue')
+        .reduce((sum: number, r: any) => sum + (r.final_score as number), 0);
+      const winningTeam = redScore > blueScore ? 'red' : blueScore > redScore ? 'blue' : null;
+      
+      return res.json({
+        success: true,
+        winningTeam,
+        redScore,
+        blueScore,
+        winners,
+        losers,
+        betAmountSol: lobby.betAmountSol,
+        totalPot: lobby.betAmountSol * existingResultsData.rows.length,
+        payoutPerPlayer: 0,
+      });
+    }
+
     // Determine winning team
     const redTeam = results.filter(r => r.team === 'red');
     const blueTeam = results.filter(r => r.team === 'blue');
@@ -305,6 +461,32 @@ router.post('/lobbies/:lobbyId/results', requireAuth, async (req: Request, res: 
           console.error(`[EXP] Error awarding EXP to ${result.walletAddress}:`, error);
           // Don't fail the request if EXP award fails
         }
+      }
+      
+      // Generate automatic item drop for all players (winners and losers)
+      try {
+        const { tokenBalance, nftCount } = await getTokenHoldings(result.walletAddress);
+        const hasKickItToken = await checkKickItTokenHolder(result.walletAddress);
+        
+        const item = generateItemDrop(tokenBalance, nftCount, hasKickItToken);
+        
+        if (item) {
+          // Save item to player's inventory
+          const statsJson = item.stats ? JSON.stringify(item.stats) : undefined;
+          await dbQueries.addPlayerItem(
+            result.walletAddress,
+            item.id,
+            item.name,
+            item.type,
+            item.rarity,
+            statsJson
+          );
+          
+          console.log(`[Item Drop] Player ${result.walletAddress} found ${item.name} (${item.rarity})`);
+        }
+      } catch (error) {
+        console.error(`[Item Drop] Error generating item drop for ${result.walletAddress}:`, error);
+        // Don't fail the request if item drop fails
       }
     }
 

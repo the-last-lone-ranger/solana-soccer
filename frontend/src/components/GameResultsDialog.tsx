@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
-import type { Lobby } from '@solana-defender/shared';
+import { useEffect, useState } from 'react';
+import type { Lobby, GameItem } from '@solana-defender/shared';
+import { ApiClient } from '../services/api.js';
+import { ItemDropNotification } from './ItemDropNotification.js';
 import './GameResultsDialog.css';
 
 interface PlayerResult {
@@ -22,6 +24,7 @@ interface GameResultsDialogProps {
   totalPot: number;
   payoutPerPlayer: number;
   lobby: Lobby;
+  apiClient: ApiClient;
   onClose: () => void;
 }
 
@@ -35,8 +38,38 @@ export function GameResultsDialog({
   totalPot,
   payoutPerPlayer,
   lobby,
+  apiClient,
   onClose,
 }: GameResultsDialogProps) {
+  const [newItem, setNewItem] = useState<GameItem | null>(null);
+  
+  // Check for new items after game ends
+  useEffect(() => {
+    const checkForNewItems = async () => {
+      try {
+        // Wait a bit for backend to process item drops
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const result = await apiClient.getRecentItems();
+        if (result.items && result.items.length > 0) {
+          // Show the most recent item
+          const latestItem = result.items[0];
+          setNewItem({
+            id: latestItem.itemId,
+            name: latestItem.name,
+            type: latestItem.type,
+            rarity: latestItem.rarity,
+            description: `Found after the round!`,
+            stats: latestItem.stats,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to check for new items:', error);
+      }
+    };
+    
+    checkForNewItems();
+  }, [apiClient]);
+  
   // Auto-close after 10 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -106,9 +139,11 @@ export function GameResultsDialog({
                             </div>
                             <div className="player-stats">
                               <span className="stat-badge">Score: {player.score}</span>
-                              <span className={`team-badge ${player.team}`}>
-                                {player.team.toUpperCase()}
-                              </span>
+                              {player.team && (
+                                <span className={`team-badge ${player.team}`}>
+                                  {player.team.toUpperCase()}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -151,9 +186,11 @@ export function GameResultsDialog({
                             </div>
                             <div className="player-stats">
                               <span className="stat-badge">Score: {player.score}</span>
-                              <span className={`team-badge ${player.team}`}>
-                                {player.team.toUpperCase()}
-                              </span>
+                              {player.team && (
+                                <span className={`team-badge ${player.team}`}>
+                                  {player.team.toUpperCase()}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -198,6 +235,14 @@ export function GameResultsDialog({
           </button>
         </div>
       </div>
+      
+      {/* Item drop notification */}
+      {newItem && (
+        <ItemDropNotification
+          item={newItem}
+          onClose={() => setNewItem(null)}
+        />
+      )}
     </div>
   );
 }

@@ -64,6 +64,16 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
       clearTimeout(timeoutRef.current);
     }
     
+    // Set initial position immediately - ensure it's visible
+    const viewportWidth = window.innerWidth;
+    const padding = 20;
+    const defaultWidth = 320;
+    const calculatedLeft = Math.max(padding, viewportWidth - defaultWidth - padding);
+    setTooltipPosition({ 
+      top: padding, 
+      left: calculatedLeft
+    });
+    
     // Small delay before showing tooltip
     timeoutRef.current = window.setTimeout(() => {
       setShowTooltip(true);
@@ -80,73 +90,35 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
   };
 
   const updateTooltipPosition = useCallback(() => {
-    if (!showTooltip || !tooltipRef.current || !triggerRef.current) return;
-
-    const tooltip = tooltipRef.current;
-    const trigger = triggerRef.current;
+    if (!showTooltip) return;
     
-    // Get bounding rect from trigger or its first child (for display: contents)
-    let rect = trigger.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0 && trigger.firstElementChild) {
-      rect = trigger.firstElementChild.getBoundingClientRect();
-    }
-    
-    // If still no valid rect, try to find the actual element
-    if (rect.width === 0 && rect.height === 0) {
-      const child = trigger.querySelector('img, .player-avatar, .player-avatar-modern, .player-badge');
-      if (child) {
-        rect = child.getBoundingClientRect();
-      }
-    }
-    
-    const tooltipHeight = tooltip.offsetHeight || 300; // Fallback height
-    const tooltipWidth = tooltip.offsetWidth || 320; // Fallback width
-    const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const padding = 12;
-    const gap = 8; // Gap between trigger and tooltip
+    const viewportHeight = window.innerHeight;
+    const padding = 20;
+    const defaultWidth = 320;
+    const defaultHeight = 400;
     
-    // Default: position to the right of the avatar
-    let left = rect.right + gap;
-    let top = rect.top;
+    // Simple fixed positioning: top-right corner
+    // Calculate position that's guaranteed to be visible
+    let tooltipWidth = defaultWidth;
+    let tooltipHeight = defaultHeight;
     
-    // If tooltip goes off right edge, position to the left
-    if (left + tooltipWidth > viewportWidth - padding) {
-      left = rect.left - tooltipWidth - gap;
+    if (tooltipRef.current) {
+      tooltipWidth = tooltipRef.current.offsetWidth || defaultWidth;
+      tooltipHeight = tooltipRef.current.offsetHeight || defaultHeight;
     }
     
-    // If still off screen on left, center it horizontally
-    if (left < padding) {
-      left = Math.max(padding, rect.left + (rect.width / 2) - (tooltipWidth / 2));
-    }
-    
-    // Adjust vertical position to keep tooltip in viewport
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportHeight - rect.bottom;
-    
-    // Try to align top with avatar, but adjust if needed
-    if (top + tooltipHeight > viewportHeight - padding) {
-      // Tooltip would go below viewport, move it up
-      top = viewportHeight - tooltipHeight - padding;
-    }
-    
-    if (top < padding) {
-      // Tooltip would go above viewport, move it down
-      top = padding;
-    }
-    
-    // Ensure tooltip doesn't go off screen horizontally
-    if (left + tooltipWidth > viewportWidth - padding) {
-      left = viewportWidth - tooltipWidth - padding;
-    }
-    if (left < padding) {
-      left = padding;
-    }
+    // Position in top-right, ensuring it's always in viewport
+    const top = padding;
+    const left = Math.max(padding, Math.min(viewportWidth - tooltipWidth - padding, viewportWidth - defaultWidth - padding));
+    const finalTop = Math.max(padding, Math.min(top, viewportHeight - tooltipHeight - padding));
+    const finalLeft = Math.max(padding, Math.min(left, viewportWidth - tooltipWidth - padding));
 
-    setTooltipPosition({ top, left });
+    setTooltipPosition({ top: finalTop, left: finalLeft });
   }, [showTooltip]);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = () => {
+    // Just update position when mouse moves - simple fixed position
     updateTooltipPosition();
   };
 
@@ -206,11 +178,25 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
   // Update tooltip position when it becomes visible or content changes
   useEffect(() => {
     if (showTooltip) {
-      // Small delay to ensure tooltip is rendered and has dimensions
+      // Update position immediately and after render
+      updateTooltipPosition();
+      
+      // Update again after a short delay to account for content loading
       const timer = setTimeout(() => {
         updateTooltipPosition();
-      }, 10);
-      return () => clearTimeout(timer);
+      }, 50);
+      
+      // Update on resize
+      const handleResize = () => {
+        updateTooltipPosition();
+      };
+      
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', handleResize);
+      };
     }
   }, [showTooltip, equippedItems, loading, updateTooltipPosition]);
 
@@ -230,6 +216,9 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
           style={{
             top: `${tooltipPosition.top}px`,
             left: `${tooltipPosition.left}px`,
+            opacity: 1,
+            visibility: 'visible',
+            display: 'block',
           }}
         >
           {/* Character Header */}

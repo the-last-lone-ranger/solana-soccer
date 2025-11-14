@@ -157,7 +157,7 @@ export function Users({ apiClient }: UsersProps) {
                         <span className="player-name">
                           {displayName}
                           {user.isKickItTokenHolder && (
-                            <span className="token-badge" title="Kicking It ($SOCCER) Token Holder">
+                            <span className="token-badge" title="Kicking It ($KICK) Token Holder">
                               ⚽
                             </span>
                           )}

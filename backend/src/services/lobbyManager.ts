@@ -13,9 +13,9 @@ class LobbyManager {
   private readonly COUNTDOWN_DURATION = 30; // 30 seconds
   private readonly MIN_PLAYERS = 2;
 
-  async createLobby(betAmountSol: number, maxPlayers: number = 50): Promise<string> {
+  async createLobby(betAmountSol: number, gameType: string = 'soccer', maxPlayers: number = 50): Promise<string> {
     const lobbyId = randomUUID();
-    await dbQueries.createLobby(lobbyId, betAmountSol, maxPlayers);
+    await dbQueries.createLobby(lobbyId, betAmountSol, gameType, maxPlayers);
     return lobbyId;
   }
 

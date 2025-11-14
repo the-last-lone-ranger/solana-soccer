@@ -1,0 +1,429 @@
+.fall-guys-game-3d {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  background: #000;
+}
+
+.fall-guys-game-3d canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.fall-guys-voice-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.voice-toggle-btn {
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.voice-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.voice-toggle-btn.active {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+}
+
+.voice-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.voice-pulse {
+  width: 10px;
+  height: 10px;
+  background: #6b7280;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.voice-pulse.active {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+  animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.voice-status-indicator kbd {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #10b981;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Winners Banner - Fixed to bottom */
+.winners-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(26, 26, 46, 0.9) 70%, transparent 100%);
+  backdrop-filter: blur(20px);
+  border-top: 2px solid rgba(255, 215, 0, 0.4);
+  box-shadow: 
+    0 -10px 40px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(255, 215, 0, 0.2);
+  animation: bannerSlideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bannerSlideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.winners-banner-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.winners-banner-title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #FFD700;
+  text-align: center;
+  text-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 2px;
+  animation: titleGlow 2s ease-in-out infinite;
+}
+
+.winners-banner-list {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+@keyframes winnersFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(-50px);
+  }
+  60% {
+    transform: scale(1.05) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.winners-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #FFD700;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  text-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.8);
+  letter-spacing: 2px;
+  animation: titleGlow 2s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+  0%, 100% {
+    text-shadow: 
+      0 0 20px rgba(255, 215, 0, 0.8),
+      0 0 40px rgba(255, 215, 0, 0.6),
+      0 4px 8px rgba(0, 0, 0, 0.8);
+  }
+  50% {
+    text-shadow: 
+      0 0 30px rgba(255, 215, 0, 1),
+      0 0 60px rgba(255, 215, 0, 0.8),
+      0 0 80px rgba(255, 215, 0, 0.4),
+      0 4px 8px rgba(0, 0, 0, 0.8);
+  }
+}
+
+.winners-banner-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  animation: cardSlideIn 0.6s ease-out backwards;
+  min-width: 200px;
+}
+
+.winners-banner-card.rank-1 {
+  animation-delay: 0.1s;
+  border-color: rgba(255, 215, 0, 0.6);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 215, 0, 0.08) 100%);
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+  transform: scale(1.05);
+}
+
+.winners-banner-card.rank-2 {
+  animation-delay: 0.2s;
+  border-color: rgba(192, 192, 192, 0.6);
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.2) 0%, rgba(192, 192, 192, 0.08) 100%);
+  box-shadow: 0 4px 20px rgba(192, 192, 192, 0.3);
+}
+
+.winners-banner-card.rank-3 {
+  animation-delay: 0.3s;
+  border-color: rgba(205, 127, 50, 0.6);
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.2) 0%, rgba(205, 127, 50, 0.08) 100%);
+  box-shadow: 0 4px 20px rgba(205, 127, 50, 0.3);
+}
+
+@keyframes cardSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.winners-banner-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: currentColor;
+}
+
+.winners-banner-card.rank-1:hover {
+  transform: translateY(-3px) scale(1.08);
+}
+
+.winners-banner-rank-badge {
+  font-size: 2rem;
+  line-height: 1;
+  animation: badgeBounce 0.6s ease-out backwards;
+}
+
+.winners-banner-card.rank-1 .winners-banner-rank-badge {
+  animation-delay: 0.2s;
+  font-size: 2.5rem;
+}
+
+.winners-banner-card.rank-2 .winners-banner-rank-badge {
+  animation-delay: 0.3s;
+}
+
+.winners-banner-card.rank-3 .winners-banner-rank-badge {
+  animation-delay: 0.4s;
+}
+
+@keyframes badgeBounce {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  80% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.winners-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.winners-banner-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.winners-banner-card.rank-1 .winners-banner-name {
+  color: #FFD700;
+  font-size: 1.2rem;
+}
+
+.winners-banner-card.rank-2 .winners-banner-name {
+  color: #C0C0C0;
+}
+
+.winners-banner-card.rank-3 .winners-banner-name {
+  color: #CD7F32;
+}
+
+.winners-banner-position {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Countdown overlay */
+.game-countdown-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
+  transform: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.countdown-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.countdown-text {
+  font-size: 120px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 
+    0 0 20px rgba(255, 255, 255, 0.8),
+    0 0 40px rgba(255, 255, 255, 0.6),
+    0 0 60px rgba(255, 255, 255, 0.4),
+    4px 4px 8px rgba(0, 0, 0, 0.8);
+  animation: countdown-pulse 0.5s ease-out;
+  font-family: 'Arial Black', 'Arial Bold', sans-serif;
+  letter-spacing: 8px;
+}
+
+.countdown-text.get-ready {
+  font-size: 80px;
+  color: #ffd700;
+  text-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.6),
+    0 0 60px rgba(255, 215, 0, 0.4),
+    4px 4px 8px rgba(0, 0, 0, 0.8);
+  animation: get-ready-bounce 1s ease-out;
+}
+
+.countdown-text.countdown-number {
+  animation: countdown-pop 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes countdown-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes get-ready-bounce {
+  0% {
+    transform: scale(0.3) translateY(-100px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) translateY(10px);
+  }
+  70% {
+    transform: scale(0.95) translateY(-5px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes countdown-pop {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  80% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+

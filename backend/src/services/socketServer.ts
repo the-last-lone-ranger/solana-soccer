@@ -138,12 +138,59 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
     }
   };
 
-  io.on('connection', (socket: AuthenticatedSocket) => {
+  // Helper function to get list of connected users with profile info
+  const getConnectedUsers = async (): Promise<Array<{ walletAddress: string; username?: string; avatarUrl?: string }>> => {
+    const usersMap = new Map<string, { walletAddress: string; username?: string; avatarUrl?: string }>();
+    
+    // Iterate through all sockets and deduplicate by walletAddress
+    for (const [socketId, socket] of io.sockets.sockets.entries()) {
+      const authSocket = socket as AuthenticatedSocket;
+      if (authSocket.walletAddress && !usersMap.has(authSocket.walletAddress)) {
+        try {
+          const player = await dbQueries.getOrCreatePlayer(authSocket.walletAddress);
+          usersMap.set(authSocket.walletAddress, {
+            walletAddress: authSocket.walletAddress,
+            username: player.username || undefined,
+            avatarUrl: player.avatar_url || undefined,
+          });
+        } catch (error) {
+          console.error(`[Socket] Error getting profile for ${authSocket.walletAddress}:`, error);
+          // Still add user without profile info
+          usersMap.set(authSocket.walletAddress, {
+            walletAddress: authSocket.walletAddress,
+          });
+        }
+      }
+    }
+    
+    return Array.from(usersMap.values());
+  };
+
+  io.on('connection', async (socket: AuthenticatedSocket) => {
     const walletAddress = socket.walletAddress!;
     console.log(`[Socket] Client connected: ${walletAddress}`);
     
     // Track which lobbies this socket is in
     const joinedLobbies = new Set<string>();
+
+    // Get user profile for chat notifications
+    let userProfile: { username?: string; avatarUrl?: string } = {};
+    try {
+      const player = await dbQueries.getOrCreatePlayer(walletAddress);
+      userProfile = {
+        username: player.username || undefined,
+        avatarUrl: player.avatar_url || undefined,
+      };
+    } catch (error) {
+      console.error(`[Socket] Error getting profile for ${walletAddress}:`, error);
+    }
+
+    // Notify all other users that this user joined
+    socket.broadcast.emit('chat:userJoined', {
+      walletAddress,
+      username: userProfile.username,
+      avatarUrl: userProfile.avatarUrl,
+    });
 
     // Join lobby room
     socket.on('lobby:join', async (data: { lobbyId: string }) => {
@@ -234,6 +281,26 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
       });
     });
 
+    // Hexagon hit events (Fall Guys)
+    socket.on('hexagonHit', (data: { hexagonKey: string; lobbyId: string }) => {
+      socket.to(`lobby:${data.lobbyId}`).emit('hexagonHit', { hexagonKey: data.hexagonKey });
+    });
+
+    // Teleport power-up collection events (Fall Guys)
+    socket.on('teleportCollect', (data: { hexagonKey: string; lobbyId: string }) => {
+      socket.to(`lobby:${data.lobbyId}`).emit('teleportCollect', { hexagonKey: data.hexagonKey });
+    });
+
+    // Floor reset power-up collection events (Fall Guys)
+    socket.on('floorResetCollect', (data: { hexagonKey: string; lobbyId: string }) => {
+      socket.to(`lobby:${data.lobbyId}`).emit('floorResetCollect', { hexagonKey: data.hexagonKey });
+    });
+
+    // Floor reset event (when floors are regenerated)
+    socket.on('floorReset', (data: { lobbyId: string; newFloors: string[] }) => {
+      socket.to(`lobby:${data.lobbyId}`).emit('floorReset', { newFloors: data.newFloors });
+    });
+
     // WebRTC signaling for voice chat
     socket.on('webrtc:offer', (data: { lobbyId: string; targetAddress: string; offer: any }) => {
       const { lobbyId, targetAddress, offer } = data;
@@ -295,9 +362,62 @@ export function setupSocketServer(httpServer: HTTPServer): SocketIOServer {
       }
     });
 
+    // Global chat: Send message
+    socket.on('chat:message', async (data: { message: string; username?: string; avatarUrl?: string }) => {
+      const { message, username, avatarUrl } = data;
+      
+      // Validate message
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return;
+      }
+      
+      // Limit message length
+      const trimmedMessage = message.trim().slice(0, 500);
+      
+      const finalUsername = username || userProfile.username;
+      const finalAvatarUrl = avatarUrl || userProfile.avatarUrl;
+      const timestamp = new Date().toISOString();
+      
+      // Save message to database
+      try {
+        await dbQueries.saveChatMessage(walletAddress, trimmedMessage, finalUsername, finalAvatarUrl);
+      } catch (error) {
+        console.error(`[Socket] Error saving chat message:`, error);
+        // Continue to broadcast even if save fails
+      }
+      
+      // Broadcast message to all connected users
+      io.emit('chat:message', {
+        walletAddress,
+        username: finalUsername,
+        avatarUrl: finalAvatarUrl,
+        message: trimmedMessage,
+        timestamp,
+      });
+      
+      console.log(`[Socket] Chat message from ${walletAddress}: ${trimmedMessage.slice(0, 50)}...`);
+    });
+
+    // Global chat: Get user list
+    socket.on('chat:getUserList', async () => {
+      try {
+        const users = await getConnectedUsers();
+        socket.emit('chat:userList', { users });
+        console.log(`[Socket] Sent user list to ${walletAddress}: ${users.length} users`);
+      } catch (error) {
+        console.error(`[Socket] Error getting user list:`, error);
+        socket.emit('chat:userList', { users: [] });
+      }
+    });
+
     // Disconnect - remove player from all lobbies they're in
     socket.on('disconnect', async () => {
       console.log(`[Socket] Client disconnected: ${walletAddress}`);
+      
+      // Notify all other users that this user left
+      socket.broadcast.emit('chat:userLeft', {
+        walletAddress,
+      });
       
       // Remove player from all lobbies they were in (only if they're actually still in the lobby)
       for (const lobbyId of joinedLobbies) {

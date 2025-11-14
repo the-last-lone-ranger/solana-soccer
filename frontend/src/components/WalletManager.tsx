@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ApiClient } from '../services/api.js';
 import { useWallet } from '../contexts/WalletContext.js';
-import './WalletManager.css';
+import './WalletDialog.css';
 
 interface WalletManagerProps {
   apiClient: ApiClient;
@@ -21,6 +21,7 @@ export function WalletManager({ apiClient, isOpen, onClose, showButton = true }:
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [internalShowModal, setInternalShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'deposit' | 'withdrawal'>('deposit');
   
   // Use external control if provided, otherwise use internal state
   const showModal = isOpen !== undefined ? isOpen : internalShowModal;
@@ -138,12 +139,12 @@ export function WalletManager({ apiClient, isOpen, onClose, showButton = true }:
       )}
 
       {showModal && (
-        <div className="wallet-manager-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="wallet-manager-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="wallet-manager-header">
-              <h2>💰 In-Game Wallet</h2>
+        <div className="wallet-dialog-overlay" onClick={() => setShowModal(false)}>
+          <div className="wallet-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="wallet-dialog-header">
+              <h2>In-Game Wallet</h2>
               <button 
-                className="close-btn"
+                className="wallet-dialog-close"
                 onClick={() => {
                   setShowModal(false);
                   // Refresh balance when dialog closes if we have a balance state
@@ -157,82 +158,83 @@ export function WalletManager({ apiClient, isOpen, onClose, showButton = true }:
               </button>
             </div>
 
-            <div className="wallet-manager-content">
+            {/* Balance Display - Always visible */}
+            {!loading && balance !== null && (
+              <div className="wallet-balance-display">
+                <div className="balance-label">Balance</div>
+                <div className="balance-value">{balance.toFixed(4)} SOL</div>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="wallet-dialog-tabs">
+              <button
+                className={`wallet-tab ${activeTab === 'deposit' ? 'active' : ''}`}
+                onClick={() => setActiveTab('deposit')}
+              >
+                Deposit
+              </button>
+              <button
+                className={`wallet-tab ${activeTab === 'withdrawal' ? 'active' : ''}`}
+                onClick={() => setActiveTab('withdrawal')}
+              >
+                Withdrawal
+              </button>
+            </div>
+
+            <div className="wallet-dialog-content">
               {loading ? (
-                <div className="loading">Loading wallet information...</div>
+                <div className="wallet-loading">Loading wallet information...</div>
               ) : error && !depositAddress ? (
-                <div className="error-message">{error}</div>
+                <div className="wallet-error">{error}</div>
               ) : (
-                <>
-                  {/* Balance Display */}
-                  <div className="wallet-section">
-                    <div className="wallet-label">Balance</div>
-                    <div className="wallet-value">
-                      {balance !== null ? `${balance.toFixed(4)} SOL` : 'Loading...'}
-                    </div>
-                  </div>
-
-                  {/* Deposit Address */}
-                  <div className="wallet-section">
-                    <div className="wallet-label">Deposit Address</div>
-                    <div className="wallet-address-display">
-                      <code className="address-text">{depositAddress || 'Loading...'}</code>
-                      {depositAddress && (
-                        <button
-                          className="copy-btn"
-                          onClick={() => copyToClipboard(depositAddress)}
-                          title="Copy address"
-                        >
-                          📋 Copy
-                        </button>
-                      )}
-                    </div>
-                    <p className="wallet-hint">
-                      Send SOL to this address to fund your in-game wallet for betting
-                    </p>
-                  </div>
-
-                  {/* Connected Wallet */}
-                  <div className="wallet-section">
-                    <div className="wallet-label">Connected Wallet</div>
-                    <div className="wallet-address-display">
-                      <code className="address-text">{formatAddress(address)}</code>
-                      {address && (
-                        <button
-                          className="copy-btn"
-                          onClick={() => copyToClipboard(address)}
-                          title="Copy address"
-                        >
-                          📋 Copy
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Withdrawal Section */}
-                  <div className="wallet-section">
-                    <div className="wallet-label">Withdraw SOL</div>
-                    <div className="withdraw-form">
-                      <div className="form-group">
-                        <label>Amount (SOL)</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          max={balance || 0}
-                          value={withdrawAmount}
-                          onChange={(e) => setWithdrawAmount(e.target.value)}
-                          placeholder="0.00"
-                          disabled={withdrawing || balance === 0}
-                        />
-                        {balance !== null && balance > 0 && (
+                <div className="wallet-tab-content">
+                  {activeTab === 'deposit' && (
+                    <div className="deposit-section">
+                      <div className="section-label">Deposit Address</div>
+                      <div className="address-display">
+                        <code className="address-code">{depositAddress || 'Loading...'}</code>
+                        {depositAddress && (
                           <button
-                            className="max-btn"
-                            onClick={() => setWithdrawAmount(balance.toFixed(4))}
+                            className="copy-button"
+                            onClick={() => copyToClipboard(depositAddress)}
+                            title="Copy address"
                           >
-                            Max
+                            📋 Copy
                           </button>
                         )}
+                      </div>
+                      <p className="deposit-hint">
+                        Send SOL to this address to fund your in-game wallet for betting
+                      </p>
+                    </div>
+                  )}
+
+                  {activeTab === 'withdrawal' && (
+                    <div className="withdrawal-section">
+                      <div className="form-group">
+                        <label>Amount (SOL)</label>
+                        <div className="amount-input-group">
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            max={balance || 0}
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            placeholder="0.00"
+                            disabled={withdrawing || balance === 0}
+                          />
+                          {balance !== null && balance > 0 && (
+                            <button
+                              className="max-button"
+                              onClick={() => setWithdrawAmount(balance.toFixed(4))}
+                              disabled={withdrawing}
+                            >
+                              Max
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="form-group">
                         <label>Destination Address</label>
@@ -245,26 +247,26 @@ export function WalletManager({ apiClient, isOpen, onClose, showButton = true }:
                         />
                       </div>
                       <button
-                        className="withdraw-btn"
+                        className="withdraw-submit-button"
                         onClick={handleWithdraw}
                         disabled={withdrawing || !withdrawAmount || !withdrawAddress || balance === 0}
                       >
                         {withdrawing ? 'Processing...' : 'Withdraw'}
                       </button>
+                      {balance === 0 && (
+                        <p className="withdrawal-hint">No balance available for withdrawal</p>
+                      )}
                     </div>
-                    {balance === 0 && (
-                      <p className="wallet-hint">No balance available for withdrawal</p>
-                    )}
-                  </div>
+                  )}
 
                   {/* Status Messages */}
                   {error && (
-                    <div className="error-message">{error}</div>
+                    <div className="wallet-error">{error}</div>
                   )}
                   {success && (
-                    <div className="success-message">{success}</div>
+                    <div className="wallet-success">{success}</div>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>

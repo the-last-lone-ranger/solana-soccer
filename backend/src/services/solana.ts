@@ -120,7 +120,7 @@ async function getTokenBalance(wallet: PublicKey, mint: PublicKey): Promise<numb
   }
 }
 
-// Check if wallet holds the Kicking It ($SOCCER) token
+// Check if wallet holds the Kicking It ($KICK) token
 const KICKING_IT_TOKEN_MINT = '6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump';
 
 // Helper function to validate if a string is a valid Solana address

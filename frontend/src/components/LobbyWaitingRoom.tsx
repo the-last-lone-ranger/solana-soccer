@@ -144,6 +144,114 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
   // Canvas dimensions - will be set dynamically based on container
   const CANVAS_WIDTH = 1200; // Increased for desktop
   const CANVAS_HEIGHT = 600;
+  
+  // Building structures for city layout
+  interface Building {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
+    roofColor: string;
+    windowColor: string;
+    type: 'house' | 'shop' | 'tower';
+  }
+  
+  // Platform for parkour
+  interface Platform {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    isMoving?: boolean;
+    moveSpeed?: number;
+    moveRange?: number;
+    startX?: number;
+  }
+  
+  // Collectible coin
+  interface Collectible {
+    x: number;
+    y: number;
+    id: string;
+    collected: boolean;
+    rotation: number;
+  }
+  
+  // Prop decoration
+  interface Prop {
+    x: number;
+    y: number;
+    type: 'tree' | 'bench' | 'streetlight' | 'sign' | 'fence';
+    width: number;
+    height: number;
+  }
+  
+  const buildings: Building[] = [
+    // Left side buildings - varied heights for parkour
+    { x: 50, y: 320, width: 100, height: 80, color: '#FF6B6B', roofColor: '#C92A2A', windowColor: '#FFE66D', type: 'house' },
+    { x: 180, y: 280, width: 90, height: 120, color: '#4ECDC4', roofColor: '#2D9CDB', windowColor: '#FFE66D', type: 'house' },
+    { x: 300, y: 340, width: 80, height: 60, color: '#95E1D3', roofColor: '#F38181', windowColor: '#FFE66D', type: 'shop' },
+    // Center buildings - tallest for challenge
+    { x: 420, y: 200, width: 120, height: 200, color: '#FFA07A', roofColor: '#FF6347', windowColor: '#FFE66D', type: 'tower' },
+    { x: 570, y: 260, width: 100, height: 140, color: '#98D8C8', roofColor: '#6C5CE7', windowColor: '#FFE66D', type: 'house' },
+    // Right side buildings
+    { x: 700, y: 300, width: 90, height: 100, color: '#F7DC6F', roofColor: '#F39C12', windowColor: '#FFE66D', type: 'shop' },
+    { x: 820, y: 250, width: 110, height: 150, color: '#BB8FCE', roofColor: '#8E44AD', windowColor: '#FFE66D', type: 'house' },
+    { x: 960, y: 310, width: 100, height: 90, color: '#85C1E2', roofColor: '#3498DB', windowColor: '#FFE66D', type: 'house' },
+    { x: 1090, y: 280, width: 90, height: 120, color: '#FF9FF3', roofColor: '#E056FD', windowColor: '#FFE66D', type: 'house' },
+  ];
+  
+  // Parkour platforms - create skill-based navigation
+  const platforms: Platform[] = [
+    // Moving platforms
+    { x: 150, y: 250, width: 60, height: 10, isMoving: true, moveSpeed: 1.5, moveRange: 80, startX: 150 },
+    { x: 350, y: 220, width: 50, height: 10, isMoving: true, moveSpeed: 2, moveRange: 100, startX: 350 },
+    { x: 680, y: 180, width: 70, height: 10, isMoving: true, moveSpeed: 1.2, moveRange: 120, startX: 680 },
+    // Static platforms for parkour routes
+    { x: 250, y: 200, width: 40, height: 10 },
+    { x: 480, y: 150, width: 50, height: 10 },
+    { x: 750, y: 220, width: 45, height: 10 },
+    { x: 1000, y: 240, width: 55, height: 10 },
+  ];
+  
+  // Collectibles - coins to collect
+  const collectiblesRef = useRef<Map<string, Collectible>>(new Map());
+  const collectedCoinsRef = useRef<Set<string>>(new Set());
+  const [coinCount, setCoinCount] = useState(0);
+  
+  // Initialize collectibles
+  useEffect(() => {
+    const coins: Collectible[] = [
+      { x: 150, y: 230, id: 'coin1', collected: false, rotation: 0 },
+      { x: 350, y: 200, id: 'coin2', collected: false, rotation: 0 },
+      { x: 480, y: 130, id: 'coin3', collected: false, rotation: 0 },
+      { x: 680, y: 160, id: 'coin4', collected: false, rotation: 0 },
+      { x: 750, y: 200, id: 'coin5', collected: false, rotation: 0 },
+      { x: 1000, y: 220, id: 'coin6', collected: false, rotation: 0 },
+      { x: 250, y: 180, id: 'coin7', collected: false, rotation: 0 },
+      { x: 570, y: 240, id: 'coin8', collected: false, rotation: 0 },
+      { x: 820, y: 230, id: 'coin9', collected: false, rotation: 0 },
+      { x: 1090, y: 260, id: 'coin10', collected: false, rotation: 0 },
+    ];
+    coins.forEach(coin => {
+      collectiblesRef.current.set(coin.id, coin);
+    });
+  }, []);
+  
+  // Props for decoration
+  const props: Prop[] = [
+    { x: 30, y: 380, type: 'tree', width: 30, height: 40 },
+    { x: 130, y: 380, type: 'bench', width: 40, height: 20 },
+    { x: 280, y: 380, type: 'streetlight', width: 15, height: 30 },
+    { x: 380, y: 380, type: 'tree', width: 30, height: 40 },
+    { x: 540, y: 380, type: 'sign', width: 25, height: 30 },
+    { x: 640, y: 380, type: 'bench', width: 40, height: 20 },
+    { x: 780, y: 380, type: 'streetlight', width: 15, height: 30 },
+    { x: 920, y: 380, type: 'tree', width: 30, height: 40 },
+    { x: 1050, y: 380, type: 'fence', width: 60, height: 25 },
+    { x: 1150, y: 380, type: 'tree', width: 30, height: 40 },
+  ];
 
   // Helper function to load avatar images
   const loadAvatarImage = (avatarUrl: string): Promise<HTMLImageElement | null> => {
@@ -484,7 +592,11 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
         pos.velocityX *= FRICTION;
       }
 
-      // Handle jump
+      // Update position FIRST
+      pos.x += pos.velocityX;
+      pos.y += pos.velocityY;
+
+      // Handle jump AFTER position update but BEFORE collision
       if (currentKeys.jump && pos.isGrounded) {
         pos.velocityY = JUMP_STRENGTH;
         pos.isGrounded = false;
@@ -492,21 +604,138 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
         setKeys((prev) => ({ ...prev, jump: false }));
       }
 
-      // Update position
-      pos.x += pos.velocityX;
-      pos.y += pos.velocityY;
-
       // Use logical canvas dimensions (not device pixel ratio scaled)
       const canvasWidth = CANVAS_WIDTH;
       const canvasHeight = CANVAS_HEIGHT;
       
-      // Ground collision
+      // Update moving platforms
+      platforms.forEach(platform => {
+        if (platform.isMoving && platform.startX !== undefined && platform.moveRange !== undefined && platform.moveSpeed !== undefined) {
+          const time = now / 1000;
+          platform.x = platform.startX + Math.sin(time * platform.moveSpeed) * platform.moveRange;
+        }
+      });
+      
+      // Building collision detection
+      const playerWidth = 40;
+      const playerHeight = 30;
+      let collided = false;
+      let onPlatform = false;
+      
+      // Platform collision (check first, platforms are easier to land on)
+      for (const platform of platforms) {
+        if (
+          pos.x + playerWidth > platform.x &&
+          pos.x < platform.x + platform.width &&
+          pos.y + playerHeight <= platform.y + 8 &&
+          pos.y + playerHeight >= platform.y - 2 &&
+          pos.velocityY >= 0
+        ) {
+          pos.y = platform.y - playerHeight;
+          pos.velocityY = 0;
+          pos.isGrounded = true;
+          onPlatform = true;
+          collided = true;
+          break;
+        }
+      }
+      
+      // Building collision detection
+      for (const building of buildings) {
+        // Check if player is colliding with building
+        if (
+          pos.x + playerWidth > building.x &&
+          pos.x < building.x + building.width &&
+          pos.y + playerHeight > building.y &&
+          pos.y < building.y + building.height
+        ) {
+          collided = true;
+          
+          // Determine collision side and push player out
+          const overlapLeft = (pos.x + playerWidth) - building.x;
+          const overlapRight = (building.x + building.width) - pos.x;
+          const overlapTop = (pos.y + playerHeight) - building.y;
+          const overlapBottom = (building.y + building.height) - pos.y;
+          
+          const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+          
+          if (minOverlap === overlapLeft) {
+            // Collision from left
+            pos.x = building.x - playerWidth;
+            pos.velocityX = 0;
+          } else if (minOverlap === overlapRight) {
+            // Collision from right
+            pos.x = building.x + building.width;
+            pos.velocityX = 0;
+          } else if (minOverlap === overlapTop && pos.velocityY >= 0) {
+            // Collision from top (landing on building)
+            pos.y = building.y - playerHeight;
+            pos.velocityY = 0;
+            pos.isGrounded = true;
+            onPlatform = true;
+          } else {
+            // Collision from bottom (hitting ceiling)
+            pos.y = building.y + building.height;
+            pos.velocityY = 0;
+          }
+          break;
+        }
+      }
+      
+      // Reset grounded state - will be set by collision checks
+      if (!onPlatform) {
+        pos.isGrounded = false;
+      }
+      
+      // Ground collision (only if not on a building or platform)
       const scaledGroundY = GROUND_Y;
-      if (pos.y >= scaledGroundY) {
+      if (!collided && pos.y >= scaledGroundY) {
         pos.y = scaledGroundY;
         pos.velocityY = 0;
         pos.isGrounded = true;
       }
+      
+      // Check if player is on top of any building (for falling detection)
+      if (!pos.isGrounded && !onPlatform) {
+        for (const building of buildings) {
+          if (
+            pos.x + playerWidth > building.x &&
+            pos.x < building.x + building.width &&
+            pos.y + playerHeight <= building.y + 5 &&
+            pos.y + playerHeight >= building.y - 5 &&
+            pos.velocityY >= 0
+          ) {
+            pos.y = building.y - playerHeight;
+            pos.velocityY = 0;
+            pos.isGrounded = true;
+            onPlatform = true;
+            break;
+          }
+        }
+      }
+      
+      // Collectible collision detection
+      collectiblesRef.current.forEach((coin, id) => {
+        if (!coin.collected && !collectedCoinsRef.current.has(id)) {
+          const coinCenterX = coin.x + 10;
+          const coinCenterY = coin.y + 10;
+          const playerCenterX = pos.x + playerWidth / 2;
+          const playerCenterY = pos.y + playerHeight / 2;
+          const distance = Math.sqrt(
+            Math.pow(coinCenterX - playerCenterX, 2) + 
+            Math.pow(coinCenterY - playerCenterY, 2)
+          );
+          
+          if (distance < 25) {
+            coin.collected = true;
+            collectedCoinsRef.current.add(id);
+            setCoinCount(collectedCoinsRef.current.size);
+            // Could send to server for leaderboard, but for now just local
+          }
+        }
+      });
+      
+      // Boundary collision
       if (pos.x < 20) {
         pos.x = 20;
         pos.velocityX = 0;
@@ -524,27 +753,77 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
       // Render - use actual canvas dimensions
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-      // Draw background (cartoonish sky gradient)
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-      gradient.addColorStop(0, '#87CEEB');
-      gradient.addColorStop(1, '#E0F6FF');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      // Draw background (vibrant sky gradient - Fortnite style)
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, canvasHeight * 0.6);
+      skyGradient.addColorStop(0, '#87CEEB'); // Sky blue
+      skyGradient.addColorStop(0.5, '#FFB6C1'); // Light pink
+      skyGradient.addColorStop(1, '#FFD700'); // Gold
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight * 0.6);
+      
+      // Draw lower sky
+      const lowerSkyGradient = ctx.createLinearGradient(0, canvasHeight * 0.6, 0, scaledGroundY);
+      lowerSkyGradient.addColorStop(0, '#FFD700');
+      lowerSkyGradient.addColorStop(1, '#E0F6FF');
+      ctx.fillStyle = lowerSkyGradient;
+      ctx.fillRect(0, canvasHeight * 0.6, canvasWidth, scaledGroundY - canvasHeight * 0.6);
 
-      // Draw ground (cartoonish grass) - reuse scaledGroundY from above
-      ctx.fillStyle = '#7CB342';
+      // Draw props first (background elements)
+      props.forEach(prop => {
+        drawProp(ctx, prop, scaledGroundY);
+      });
+
+      // Draw platforms
+      platforms.forEach(platform => {
+        drawPlatform(ctx, platform, scaledGroundY);
+      });
+
+      // Draw buildings (before ground so they appear on top)
+      buildings.forEach(building => {
+        drawBuilding(ctx, building, scaledGroundY);
+      });
+
+      // Draw collectibles
+      collectiblesRef.current.forEach(coin => {
+        if (!coin.collected) {
+          drawCollectible(ctx, coin, now);
+        }
+      });
+
+      // Draw ground (cartoonish grass/pavement) - reuse scaledGroundY from above
+      // Draw pavement base
+      ctx.fillStyle = '#95A5A6';
       ctx.fillRect(0, scaledGroundY, canvasWidth, canvasHeight - scaledGroundY);
+      
+      // Draw grass patches between buildings
+      ctx.fillStyle = '#7CB342';
+      for (let i = 0; i < canvasWidth; i += 150) {
+        ctx.fillRect(i, scaledGroundY, 50, canvasHeight - scaledGroundY);
+      }
+      
+      // Draw road markings
+      ctx.strokeStyle = '#F39C12';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([20, 15]);
+      ctx.beginPath();
+      ctx.moveTo(canvasWidth / 2, scaledGroundY);
+      ctx.lineTo(canvasWidth / 2, canvasHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
       
       // Draw grass details
       ctx.fillStyle = '#558B2F';
       for (let i = 0; i < canvasWidth; i += 30) {
-        ctx.fillRect(i, scaledGroundY, 2, 10);
+        if (i % 150 < 50) { // Only draw in grass patches
+          ctx.fillRect(i, scaledGroundY, 2, 10);
+        }
       }
 
-      // Draw clouds (cartoonish)
+      // Draw clouds (more vibrant, Fortnite style)
       drawCloud(ctx, 150, 100, 60);
       drawCloud(ctx, 400, 80, 80);
       drawCloud(ctx, 650, 120, 50);
+      drawCloud(ctx, 900, 90, 70);
 
       // Draw remote players
       const currentLobby = lobbyRef.current;
@@ -580,11 +859,11 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
       
       remotePlayersRef.current.forEach((remotePlayer) => {
         const name = remotePlayer.username || remotePlayer.walletAddress.slice(0, 6);
-        ctx.fillText(name, remotePlayer.position.x + 20, remotePlayer.position.y - 35);
+        ctx.fillText(name, remotePlayer.position.x + 20, remotePlayer.position.y - 22);
         
         // Draw microphone icon if speaking
         if (remotePlayer.isSpeaking) {
-          const micY = remotePlayer.position.y - 50;
+          const micY = remotePlayer.position.y - 37;
           const pulseSize = 8 + Math.sin(Date.now() / 100) * 2;
           
           // Outer glow ring
@@ -630,11 +909,11 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
         }
       });
       
-      ctx.fillText('You', pos.x + 20, pos.y - 35);
+      ctx.fillText('You', pos.x + 20, pos.y - 22);
       
       // Draw microphone icon for local player if speaking
       if (isSpeaking) {
-        const micY = pos.y - 50;
+        const micY = pos.y - 37;
         const pulseSize = 8 + Math.sin(Date.now() / 100) * 2;
         
         // Outer glow ring
@@ -1409,7 +1688,9 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
   };
 
   const drawCloud = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
     ctx.arc(x + size * 0.6, y, size * 0.6, 0, Math.PI * 2);
@@ -1417,6 +1698,299 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
     ctx.arc(x + size * 0.3, y - size * 0.3, size * 0.4, 0, Math.PI * 2);
     ctx.arc(x + size * 0.9, y - size * 0.3, size * 0.4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
+  };
+  
+  const drawBuilding = (ctx: CanvasRenderingContext2D, building: Building, groundY: number) => {
+    const { x, y, width, height, color, roofColor, windowColor, type } = building;
+    
+    // Building shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(x + 5, groundY, width, 8);
+    
+    // Building body
+    const bodyGradient = ctx.createLinearGradient(x, y, x, y + height);
+    bodyGradient.addColorStop(0, color);
+    bodyGradient.addColorStop(1, adjustColor(color, -20));
+    ctx.fillStyle = bodyGradient;
+    ctx.fillRect(x, y, width, height);
+    
+    // Building outline
+    ctx.strokeStyle = adjustColor(color, -30);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, width, height);
+    
+    // Windows
+    const windowRows = type === 'tower' ? 4 : 3;
+    const windowCols = type === 'tower' ? 3 : 2;
+    const windowWidth = 15;
+    const windowHeight = 20;
+    const windowSpacing = 8;
+    const startX = x + (width - (windowCols * windowWidth + (windowCols - 1) * windowSpacing)) / 2;
+    const startY = y + 20;
+    
+    for (let row = 0; row < windowRows; row++) {
+      for (let col = 0; col < windowCols; col++) {
+        const wx = startX + col * (windowWidth + windowSpacing);
+        const wy = startY + row * (windowHeight + windowSpacing);
+        
+        if (wy + windowHeight < y + height - 10) {
+          // Window frame
+          ctx.fillStyle = '#2C3E50';
+          ctx.fillRect(wx, wy, windowWidth, windowHeight);
+          
+          // Window glass (with glow effect) - deterministic based on position
+          const isLit = ((wx + wy) % 3) !== 0; // Deterministic lighting pattern
+          if (isLit) {
+            ctx.fillStyle = windowColor;
+            ctx.shadowColor = windowColor;
+            ctx.shadowBlur = 5;
+          } else {
+            ctx.fillStyle = '#1A252F';
+          }
+          ctx.fillRect(wx + 2, wy + 2, windowWidth - 4, windowHeight - 4);
+          ctx.shadowBlur = 0;
+          
+          // Window cross
+          ctx.strokeStyle = '#34495E';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(wx + windowWidth / 2, wy);
+          ctx.lineTo(wx + windowWidth / 2, wy + windowHeight);
+          ctx.moveTo(wx, wy + windowHeight / 2);
+          ctx.lineTo(wx + windowWidth, wy + windowHeight / 2);
+          ctx.stroke();
+        }
+      }
+    }
+    
+    // Door
+    const doorWidth = 25;
+    const doorHeight = 35;
+    const doorX = x + (width - doorWidth) / 2;
+    const doorY = y + height - doorHeight;
+    
+    ctx.fillStyle = '#2C3E50';
+    ctx.fillRect(doorX, doorY, doorWidth, doorHeight);
+    ctx.strokeStyle = '#1A252F';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(doorX, doorY, doorWidth, doorHeight);
+    
+    // Door handle
+    ctx.fillStyle = '#F39C12';
+    ctx.beginPath();
+    ctx.arc(doorX + doorWidth - 6, doorY + doorHeight / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Roof
+    if (type === 'house') {
+      // Triangular roof
+      ctx.fillStyle = roofColor;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y);
+      ctx.lineTo(x + width / 2, y - 30);
+      ctx.lineTo(x + width + 10, y);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Roof outline
+      ctx.strokeStyle = adjustColor(roofColor, -30);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (type === 'tower') {
+      // Flat roof with railing
+      ctx.fillStyle = roofColor;
+      ctx.fillRect(x - 5, y - 15, width + 10, 15);
+      
+      // Railing
+      ctx.strokeStyle = adjustColor(roofColor, -40);
+      ctx.lineWidth = 2;
+      for (let i = 0; i < width + 10; i += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x - 5 + i, y - 15);
+        ctx.lineTo(x - 5 + i, y - 5);
+        ctx.stroke();
+      }
+    } else {
+      // Shop - flat roof
+      ctx.fillStyle = roofColor;
+      ctx.fillRect(x - 5, y - 10, width + 10, 10);
+    }
+    
+    // Building sign (for shops)
+    if (type === 'shop') {
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('SHOP', x + width / 2, y - 15);
+    }
+  };
+  
+  const adjustColor = (color: string, amount: number): string => {
+    // Simple color darkening/lightening
+    const num = parseInt(color.replace('#', ''), 16);
+    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
+    const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  };
+  
+  const drawPlatform = (ctx: CanvasRenderingContext2D, platform: Platform, groundY: number) => {
+    const { x, y, width, height, isMoving } = platform;
+    
+    // Platform shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(x + 2, groundY, width, 5);
+    
+    // Platform body with gradient
+    const gradient = ctx.createLinearGradient(x, y, x, y + height);
+    gradient.addColorStop(0, '#8B7355');
+    gradient.addColorStop(0.5, '#A0826D');
+    gradient.addColorStop(1, '#6B5B47');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, width, height);
+    
+    // Platform top highlight
+    ctx.fillStyle = '#CD853F';
+    ctx.fillRect(x, y, width, 2);
+    
+    // Moving platform indicator
+    if (isMoving) {
+      ctx.fillStyle = '#FFD700';
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(x + width / 2, y - 8, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    
+    // Platform outline
+    ctx.strokeStyle = '#654321';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, width, height);
+  };
+  
+  const drawCollectible = (ctx: CanvasRenderingContext2D, coin: Collectible, time: number) => {
+    const { x, y } = coin;
+    const rotation = (time / 10) % (Math.PI * 2);
+    const bobOffset = Math.sin(time / 200) * 3;
+    
+    ctx.save();
+    ctx.translate(x + 10, y + 10 + bobOffset);
+    ctx.rotate(rotation);
+    
+    // Coin glow
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 15;
+    
+    // Coin body
+    const coinGradient = ctx.createRadialGradient(0, -5, 0, 0, 0, 10);
+    coinGradient.addColorStop(0, '#FFD700');
+    coinGradient.addColorStop(0.7, '#FFA500');
+    coinGradient.addColorStop(1, '#FF8C00');
+    ctx.fillStyle = coinGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Coin shine
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(-3, -3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Coin symbol ($)
+    ctx.fillStyle = '#654321';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', 0, 0);
+    
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  };
+  
+  const drawProp = (ctx: CanvasRenderingContext2D, prop: Prop, groundY: number) => {
+    const { x, y, type, width, height } = prop;
+    const propY = groundY - height;
+    
+    switch (type) {
+      case 'tree':
+        // Tree trunk
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x + width / 2 - 4, propY + height - 15, 8, 15);
+        // Tree leaves
+        ctx.fillStyle = '#228B22';
+        ctx.beginPath();
+        ctx.arc(x + width / 2, propY + height - 15, width / 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Tree highlight
+        ctx.fillStyle = '#32CD32';
+        ctx.beginPath();
+        ctx.arc(x + width / 2 - 3, propY + height - 18, width / 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+        
+      case 'bench':
+        // Bench seat
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(x, propY + height - 8, width, 8);
+        // Bench back
+        ctx.fillRect(x, propY + height - 15, width, 7);
+        // Bench legs
+        ctx.fillRect(x + 3, propY + height - 8, 4, 8);
+        ctx.fillRect(x + width - 7, propY + height - 8, 4, 8);
+        break;
+        
+      case 'streetlight':
+        // Pole
+        ctx.fillStyle = '#2C3E50';
+        ctx.fillRect(x + width / 2 - 2, propY + height - 20, 4, 20);
+        // Light
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(x + width / 2, propY + height - 20, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Light glow on ground
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+        ctx.beginPath();
+        ctx.ellipse(x + width / 2, groundY, 15, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+        
+      case 'sign':
+        // Sign post
+        ctx.fillStyle = '#34495E';
+        ctx.fillRect(x + width / 2 - 1, propY + height - 10, 2, 10);
+        // Sign board
+        ctx.fillStyle = '#ECF0F1';
+        ctx.fillRect(x, propY + height - 20, width, 10);
+        ctx.strokeStyle = '#2C3E50';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, propY + height - 20, width, 10);
+        // Sign text
+        ctx.fillStyle = '#2C3E50';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', x + width / 2, propY + height - 13);
+        break;
+        
+      case 'fence':
+        // Fence posts
+        for (let i = 0; i < width; i += 15) {
+          ctx.fillStyle = '#8B7355';
+          ctx.fillRect(x + i, propY + height - 15, 3, 15);
+        }
+        // Fence rails
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(x, propY + height - 12, width, 2);
+        ctx.fillRect(x, propY + height - 6, width, 2);
+        break;
+    }
   };
 
   // Cleanup: leave lobby when component unmounts
@@ -1486,6 +2060,9 @@ export function LobbyWaitingRoom({ lobby: initialLobby, socketClient, onGameStar
           <div className="controls-hint">
             <p>🎮 Use Arrow Keys or WASD to move around!</p>
             <p>Spacebar or Up Arrow to jump</p>
+            <p>💰 Collect coins on platforms and rooftops!</p>
+            <p>🏃 Parkour across buildings and moving platforms!</p>
+            <p className="coin-counter">💰 Collected: {coinCount}/10</p>
             {isVoiceEnabled && (
               <div className="voice-hint">
                 <p>

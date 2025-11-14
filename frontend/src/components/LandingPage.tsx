@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { WalletConnect } from './WalletConnect.js';
 import './LandingPage.css';
 
@@ -71,16 +72,10 @@ export function LandingPage() {
             <motion.span className="title-line gradient-text" variants={itemVariants}>
               Kicking It
             </motion.span>
-            <motion.span className="title-line" variants={itemVariants}>
-              with
-            </motion.span>
-            <motion.span className="title-line gradient-text-2" variants={itemVariants}>
-              $SOCCER
-            </motion.span>
           </motion.h1>
           <motion.p className="hero-subtitle" variants={itemVariants}>
-            Experience the next generation of multiplayer soccer gaming. 
-            Connect your wallet, own $SOCCER token for 2.5x rewards, and dominate the pitch.
+            Experience the next generation of multiplayer gaming. 
+            Connect your wallet, own $KICK token for 2.5x rewards, and compete across multiple game modes.
           </motion.p>
           <motion.div className="hero-features" variants={itemVariants}>
             <motion.div
@@ -98,8 +93,8 @@ export function LandingPage() {
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="feature-icon">⚽</span>
-              <span>$SOCCER Token Rewards</span>
+              <span className="feature-icon">🎮</span>
+              <span>$KICK Token Rewards</span>
             </motion.div>
             <motion.div
               className="feature-item"
@@ -111,9 +106,26 @@ export function LandingPage() {
               <span>Rare Item Drops</span>
             </motion.div>
           </motion.div>
+          <motion.div className="hero-cta" variants={itemVariants}>
+            <motion.div
+              className="hero-cta-buttons"
+              variants={itemVariants}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link to="/games" className="hero-cta-link games-link">
+                  <span className="cta-link-icon">🎮</span>
+                  <span>Learn About Games & Power-Ups</span>
+                  <span className="cta-link-arrow">→</span>
+                </Link>
+              </motion.div>
+            </motion.div>
+          </motion.div>
           <motion.div className="landing-contract-footer" variants={itemVariants}>
             <div className="landing-contract-footer-row">
-              <span className="landing-contract-label">$SOCCER Contract</span>
+              <span className="landing-contract-label">$KICK Contract</span>
               <code className="landing-contract-address">6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump</code>
             </div>
             <div className="landing-contract-footer-row">

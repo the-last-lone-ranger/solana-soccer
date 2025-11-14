@@ -251,6 +251,7 @@ async function initializeSchema() {
     CREATE TABLE IF NOT EXISTS lobbies (
       id TEXT PRIMARY KEY,
       bet_amount_sol REAL NOT NULL,
+      game_type TEXT NOT NULL DEFAULT 'soccer',
       status TEXT NOT NULL DEFAULT 'waiting',
       max_players INTEGER DEFAULT 50,
       countdown_seconds INTEGER,
@@ -258,6 +259,37 @@ async function initializeSchema() {
       completed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+
+  // Add game_type column if it doesn't exist (migration for existing databases)
+  try {
+    await db.execute(`
+      ALTER TABLE lobbies ADD COLUMN game_type TEXT NOT NULL DEFAULT 'soccer';
+    `);
+    console.log('✅ Migration: Added game_type column to lobbies');
+  } catch (error: any) {
+    const errorMsg = error.message || error.toString() || '';
+    if (!errorMsg.includes('duplicate column') && !errorMsg.includes('already exists')) {
+      console.warn('⚠️ Migration warning (game_type column):', errorMsg);
+    }
+  }
+
+  // Chat messages table
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      wallet_address TEXT NOT NULL,
+      username TEXT,
+      avatar_url TEXT,
+      message TEXT NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (wallet_address) REFERENCES players(wallet_address)
+    );
+  `);
+
+  // Create index on timestamp for faster queries
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp DESC);
   `);
 
   // Lobby players join table
@@ -286,9 +318,24 @@ async function initializeSchema() {
       payout_tx TEXT,
       completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (lobby_id) REFERENCES lobbies(id),
-      FOREIGN KEY (wallet_address) REFERENCES players(wallet_address)
+      FOREIGN KEY (wallet_address) REFERENCES players(wallet_address),
+      UNIQUE(lobby_id, wallet_address)
     );
   `);
+
+  // Create unique index if it doesn't exist (for existing databases)
+  try {
+    await db.execute(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_lobby_results_unique 
+      ON lobby_results(lobby_id, wallet_address);
+    `);
+    console.log('✅ Migration: Added unique constraint to lobby_results');
+  } catch (error: any) {
+    const errorMsg = error.message || error.toString() || '';
+    if (!errorMsg.includes('duplicate') && !errorMsg.includes('already exists')) {
+      console.warn('⚠️ Migration warning (lobby_results unique index):', errorMsg);
+    }
+  }
 
   // Migrate existing tables: Add team and won columns if they don't exist
   // SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we catch errors
@@ -1095,14 +1142,15 @@ export const dbQueries = {
   createLobby: async (
     lobbyId: string,
     betAmountSol: number,
+    gameType: string = 'soccer',
     maxPlayers: number = 50
   ): Promise<void> => {
     await db.execute({
       sql: `
-        INSERT INTO lobbies (id, bet_amount_sol, status, max_players)
-        VALUES (?, ?, 'waiting', ?)
+        INSERT INTO lobbies (id, bet_amount_sol, game_type, status, max_players)
+        VALUES (?, ?, ?, 'waiting', ?)
       `,
-      args: [lobbyId, betAmountSol, maxPlayers],
+      args: [lobbyId, betAmountSol, gameType, maxPlayers],
     });
   },
 
@@ -1120,6 +1168,7 @@ export const dbQueries = {
     return {
       id: row.id as string,
       betAmountSol: row.bet_amount_sol as number,
+      gameType: (row.game_type as string) || 'soccer',
       status: row.status as string,
       maxPlayers: row.max_players as number,
       countdownSeconds: row.countdown_seconds as number | null,
@@ -1219,7 +1268,7 @@ export const dbQueries = {
     });
   },
 
-  getAvailableLobbies: async (betAmountSol?: number): Promise<any[]> => {
+  getAvailableLobbies: async (betAmountSol?: number, gameType?: string): Promise<any[]> => {
     let sql = `
       SELECT 
         l.*,
@@ -1235,6 +1284,11 @@ export const dbQueries = {
       args.push(betAmountSol);
     }
 
+    if (gameType !== undefined) {
+      sql += ' AND l.game_type = ?';
+      args.push(gameType);
+    }
+
     sql += ' GROUP BY l.id ORDER BY l.created_at DESC LIMIT 20';
 
     const result = await db.execute({ sql, args });
@@ -1242,6 +1296,7 @@ export const dbQueries = {
     return result.rows.map((row) => ({
       id: row.id as string,
       betAmountSol: row.bet_amount_sol as number,
+      gameType: (row.game_type as string) || 'soccer',
       status: row.status as string,
       maxPlayers: row.max_players as number,
       countdownSeconds: row.countdown_seconds as number | null,
@@ -1280,13 +1335,33 @@ export const dbQueries = {
     team?: string,
     won?: boolean
   ): Promise<void> => {
-    await db.execute({
-      sql: `
-        INSERT INTO lobby_results (lobby_id, wallet_address, final_score, final_position, team, won)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      args: [lobbyId, walletAddress, finalScore, finalPosition, team || null, won ? 1 : 0],
-    });
+    // Use INSERT OR IGNORE to prevent duplicates (unique constraint on lobby_id, wallet_address)
+    // If a duplicate exists, it will be silently ignored
+    try {
+      await db.execute({
+        sql: `
+          INSERT OR IGNORE INTO lobby_results (lobby_id, wallet_address, final_score, final_position, team, won)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        args: [lobbyId, walletAddress, finalScore, finalPosition, team || null, won ? 1 : 0],
+      });
+    } catch (error: any) {
+      // If INSERT OR IGNORE fails due to unique constraint, try UPDATE instead
+      // This handles cases where the unique constraint might not be enforced yet
+      const errorMsg = error.message || error.toString() || '';
+      if (errorMsg.includes('UNIQUE constraint') || errorMsg.includes('duplicate')) {
+        await db.execute({
+          sql: `
+            UPDATE lobby_results 
+            SET final_score = ?, final_position = ?, team = ?, won = ?
+            WHERE lobby_id = ? AND wallet_address = ?
+          `,
+          args: [finalScore, finalPosition, team || null, won ? 1 : 0, lobbyId, walletAddress],
+        });
+      } else {
+        throw error;
+      }
+    }
   },
 
   getRecentRounds: async (limit: number = 5): Promise<any[]> => {
@@ -1508,6 +1583,37 @@ export const dbQueries = {
       `,
       args: [newLevel, newExp, walletAddress],
     });
+  },
+
+  // Chat message operations
+  saveChatMessage: async (walletAddress: string, message: string, username?: string, avatarUrl?: string): Promise<void> => {
+    await db.execute({
+      sql: 'INSERT INTO chat_messages (wallet_address, username, avatar_url, message) VALUES (?, ?, ?, ?)',
+      args: [walletAddress, username || null, avatarUrl || null, message],
+    });
+  },
+
+  getRecentChatMessages: async (limit: number = 50): Promise<Array<{
+    id: number;
+    walletAddress: string;
+    username?: string;
+    avatarUrl?: string;
+    message: string;
+    timestamp: string;
+  }>> => {
+    const result = await db.execute({
+      sql: 'SELECT id, wallet_address, username, avatar_url, message, timestamp FROM chat_messages ORDER BY timestamp DESC LIMIT ?',
+      args: [limit],
+    });
+
+    return result.rows.map((row: any) => ({
+      id: row.id as number,
+      walletAddress: row.wallet_address as string,
+      username: row.username as string | undefined,
+      avatarUrl: row.avatar_url as string | undefined,
+      message: row.message as string,
+      timestamp: row.timestamp as string,
+    })).reverse(); // Reverse to show oldest first
   },
 
   getPlayerLevel: async (walletAddress: string): Promise<{ level: number; exp: number }> => {

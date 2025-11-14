@@ -144,27 +144,23 @@ body {
   letter-spacing: 0.02em;
 }
 
-.app-header .emoji {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
 .app-header h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.125rem, 2vw, 1.375rem);
-  font-weight: 600;
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .app-header p {
   margin: 0;
-  font-size: clamp(0.75rem, 1.25vw, 0.8125rem);
+  font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
   color: var(--text-secondary);
   font-weight: 400;
-  display: none;
+  display: block;
+  margin-top: 2px;
 }
 
 .header-actions {
@@ -285,10 +281,12 @@ body {
 /* When showing profile or lobby waiting room, use full width */
 .app-content:has(.profile-page),
 .app-content:has(.lobby-waiting-room),
-.app-content:has(.soccer-game-container) {
+.app-content:has(.soccer-game-container),
+.app-content:has(.lobby-waiting-room-3d) {
   grid-template-columns: 1fr;
   padding: 0;
   max-width: 100%;
+  width: 100%;
 }
 
 /* Sidebar */

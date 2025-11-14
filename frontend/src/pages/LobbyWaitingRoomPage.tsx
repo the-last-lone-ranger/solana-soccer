@@ -4,6 +4,7 @@ import { useWallet } from '../contexts/WalletContext.js';
 import { ApiClient } from '../services/api.js';
 import { SocketClient } from '../services/socketClient.js';
 import { LobbyWaitingRoom } from '../components/LobbyWaitingRoom.js';
+import { LobbyWaitingRoom3D } from '../components/LobbyWaitingRoom3D.js';
 import type { Lobby } from '@solana-defender/shared';
 
 interface LobbyWaitingRoomPageProps {
@@ -18,6 +19,11 @@ export function LobbyWaitingRoomPage({ apiClient, onLobbyStart }: LobbyWaitingRo
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [socketClient] = useState(() => new SocketClient());
   const [loading, setLoading] = useState(true);
+  const [use3D, setUse3D] = useState(() => {
+    // Check localStorage preference, default to 3D
+    const saved = localStorage.getItem('waitingRoom3D');
+    return saved ? saved === 'true' : true;
+  });
 
   useEffect(() => {
     if (!lobbyId || !address) {
@@ -196,18 +202,52 @@ export function LobbyWaitingRoomPage({ apiClient, onLobbyStart }: LobbyWaitingRo
     );
   }
 
+  const WaitingRoomComponent = use3D ? LobbyWaitingRoom3D : LobbyWaitingRoom;
+
   return (
-    <LobbyWaitingRoom
-      lobby={lobby}
-      socketClient={socketClient}
-      onGameStart={() => {
-        onLobbyStart(lobby, socketClient);
-      }}
-      onLeaveLobby={() => {
-        navigate('/lobbies');
-      }}
-      apiClient={apiClient}
-    />
+    <div style={{ 
+      width: '100vw', 
+      maxWidth: '100vw', 
+      margin: 0, 
+      padding: 0,
+      position: 'relative',
+      overflowX: 'hidden'
+    }}>
+      <div style={{ 
+        position: 'fixed', 
+        top: '20px', 
+        right: '20px', 
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.7)',
+        padding: '10px',
+        borderRadius: '8px',
+        color: 'white'
+      }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={use3D}
+            onChange={(e) => {
+              const newValue = e.target.checked;
+              setUse3D(newValue);
+              localStorage.setItem('waitingRoom3D', String(newValue));
+            }}
+          />
+          <span>🎮 3D Mode (Fall Guys Style)</span>
+        </label>
+      </div>
+      <WaitingRoomComponent
+        lobby={lobby}
+        socketClient={socketClient}
+        onGameStart={() => {
+          onLobbyStart(lobby, socketClient);
+        }}
+        onLeaveLobby={() => {
+          navigate('/lobbies');
+        }}
+        apiClient={apiClient}
+      />
+    </div>
   );
 }
 

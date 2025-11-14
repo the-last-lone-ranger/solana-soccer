@@ -165,6 +165,8 @@
   color: var(--text-primary);
   word-break: break-all;
   margin: 0;
+  background: transparent;
+  border: none;
 }
 
 .copy-button {
@@ -223,15 +225,52 @@
   transition: all var(--transition-base);
 }
 
-.form-group input:focus {
+/* Light mode - ensure inputs are always readable */
+:root:not([data-theme='dark']) .form-group input,
+[data-theme='light'] .form-group input {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+:root:not([data-theme='dark']) .form-group input::placeholder,
+[data-theme='light'] .form-group input::placeholder {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+:root:not([data-theme='dark']) .form-group input:focus,
+[data-theme='light'] .form-group input:focus {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: var(--accent-color) !important;
+}
+
+:root:not([data-theme='dark']) .form-group input:disabled,
+[data-theme='light'] .form-group input:disabled {
+  background: #f5f5f5 !important;
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Dark mode styles */
+[data-theme='dark'] .form-group input {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .form-group input:focus {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px var(--accent-light);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-.form-group input:disabled {
+[data-theme='dark'] .form-group input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .max-button {
@@ -346,4 +385,5 @@
     font-size: 0.875rem;
   }
 }
+
 

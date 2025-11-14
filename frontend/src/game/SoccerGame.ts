@@ -934,7 +934,7 @@ export class SoccerGame {
     
     // Display name above player (username or wallet address)
     const displayName = player.username || `${player.walletAddress.slice(0, 6)}...${player.walletAddress.slice(-4)}`;
-    const nameYOffset = isLocal ? -this.PLAYER_RADIUS - 50 : -this.PLAYER_RADIUS - 20;
+    const nameYOffset = isLocal ? -this.PLAYER_RADIUS - 25 : -this.PLAYER_RADIUS - 25;
     
     // Name background with gradient
     ctx.font = '600 12px Inter, Arial';

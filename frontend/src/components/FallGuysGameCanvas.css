@@ -1,0 +1,87 @@
+.fall-guys-game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.fall-guys-game-header {
+  text-align: center;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.fall-guys-game-header h2 {
+  font-size: 2.5rem;
+  margin: 0 0 10px 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.fall-guys-game-header p {
+  font-size: 1.2rem;
+  margin: 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.fall-guys-game-canvas-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.fall-guys-game-canvas {
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+  background: #87CEEB;
+  cursor: crosshair;
+}
+
+.fall-guys-game-canvas:focus {
+  outline: 3px solid #FFD700;
+  outline-offset: 5px;
+}
+
+.fall-guys-game-controls {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.fall-guys-game-controls p {
+  margin: 5px 0;
+  font-size: 1rem;
+}
+
+.fall-guys-game-controls strong {
+  font-size: 1.2rem;
+  color: #FFD700;
+}
+
+

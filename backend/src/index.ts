@@ -47,7 +47,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // Public routes (no authentication required)
-const publicRoutes = ['/health', '/leaderboard', '/username-check', '/rounds', '/users', '/auth/google/url'];
+const publicRoutes = ['/health', '/leaderboard', '/username-check', '/rounds', '/users', '/auth/google/url', '/chat/messages'];
 
 // Apply OpenKit middleware conditionally - only for protected routes
 app.use('/api', (req, res, next) => {

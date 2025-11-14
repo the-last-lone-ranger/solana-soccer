@@ -8,8 +8,9 @@ import { LobbyWaitingRoom } from './LobbyWaitingRoom.js';
 import { PlayerTooltip } from './PlayerTooltip.js';
 import { LoadingSpinner, SkeletonLoader } from './LoadingSpinner.js';
 import { RecentRounds } from './RecentRounds.js';
+import { GlobalChat } from './GlobalChat.js';
 import type { Lobby, LobbyStatus } from '@solana-defender/shared';
-import { BetAmount } from '@solana-defender/shared';
+import { BetAmount, GameType } from '@solana-defender/shared';
 import './LobbyBrowser.css';
 
 interface LobbyBrowserProps {
@@ -22,6 +23,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
   const navigate = useNavigate();
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [selectedBetAmount, setSelectedBetAmount] = useState<number | null>(null);
+  const [selectedGameType, setSelectedGameType] = useState<GameType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -30,7 +32,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
   const [joinedLobby, setJoinedLobby] = useState<Lobby | null>(null);
   const [countdowns, setCountdowns] = useState<Map<string, number>>(new Map());
 
-  // Load wallet balance
+  // Load wallet balance (for join/create checks, not displayed)
   useEffect(() => {
     if (address) {
       loadWalletBalance();
@@ -42,7 +44,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     loadLobbies();
     const interval = setInterval(loadLobbies, 2000); // Refresh every 2 seconds
     return () => clearInterval(interval);
-  }, [selectedBetAmount]);
+  }, [selectedBetAmount, selectedGameType]);
 
   // Connect socket when address is available (Solana wallet) or Google auth is present
   useEffect(() => {
@@ -154,9 +156,13 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
 
   const loadLobbies = async () => {
     try {
-      const result = await apiClient.getLobbies(selectedBetAmount ?? undefined);
+      const result = await apiClient.getLobbies(
+        selectedBetAmount ?? undefined,
+        selectedGameType ?? undefined
+      );
       console.log('[LobbyBrowser] Loaded lobbies from API:', result.lobbies.map(l => ({ 
         id: l.id, 
+        gameType: l.gameType,
         playerCount: l.players?.length || 0,
         players: l.players?.map(p => p.walletAddress) || []
       })));
@@ -214,7 +220,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     }
   };
 
-  const createLobby = async (betAmountSol: number) => {
+  const createLobby = async (betAmountSol: number, gameType: GameType) => {
     if (!address) {
       setError('Please connect your wallet first');
       return;
@@ -229,7 +235,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     setError(null);
 
     try {
-      const result = await apiClient.createLobby(betAmountSol);
+      const result = await apiClient.createLobby(betAmountSol, gameType);
       setJoinedLobbyId(result.lobby.id);
       setJoinedLobby(result.lobby);
       socketClient.joinLobby(result.lobby.id);
@@ -331,6 +337,34 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
           </div>
         )}
 
+        {/* Game Type Filter */}
+        <div className="sidebar-section">
+          <div className="section-label">Game Type</div>
+          <div className="filter-group">
+            <button
+              className={`filter-chip ${selectedGameType === null ? 'active' : ''}`}
+              onClick={() => setSelectedGameType(null)}
+            >
+              <span className="chip-icon">🎮</span>
+              <span className="chip-label">All Games</span>
+            </button>
+            <button
+              className={`filter-chip ${selectedGameType === GameType.Soccer ? 'active' : ''}`}
+              onClick={() => setSelectedGameType(GameType.Soccer)}
+            >
+              <span className="chip-icon">⚽</span>
+              <span className="chip-label">Soccer</span>
+            </button>
+            <button
+              className={`filter-chip ${selectedGameType === GameType.FallGuys ? 'active' : ''}`}
+              onClick={() => setSelectedGameType(GameType.FallGuys)}
+            >
+              <span className="chip-icon">🏃</span>
+              <span className="chip-label">Fall Guys</span>
+            </button>
+          </div>
+        </div>
+
         {/* Filters Section - Notion style */}
         <div className="sidebar-section">
           <div className="section-label">Filter by stake</div>
@@ -366,65 +400,10 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
           </div>
         </div>
 
-        {/* Create Section - Monday.com style */}
-        <div className="sidebar-section">
-          <div className="section-label">Create lobby</div>
-          <div className="create-group">
-            <motion.button
-              onClick={() => createLobby(BetAmount.Free)}
-              disabled={loading || !address}
-              className="create-action-btn create-free"
-              whileHover={!loading && address ? { scale: 1.02 } : {}}
-              whileTap={!loading && address ? { scale: 0.98 } : {}}
-            >
-              <span className="action-icon">✨</span>
-              <span className="action-content">
-                <span className="action-title">Free Play</span>
-                <span className="action-subtitle">No stake required</span>
-              </span>
-            </motion.button>
-            <motion.button
-              onClick={() => createLobby(BetAmount.Low)}
-              disabled={loading || !address || walletBalance < BetAmount.Low}
-              className="create-action-btn create-low"
-              whileHover={!loading && address && walletBalance >= BetAmount.Low ? { scale: 1.02 } : {}}
-              whileTap={!loading && address && walletBalance >= BetAmount.Low ? { scale: 0.98 } : {}}
-            >
-              <span className="action-icon">💎</span>
-              <span className="action-content">
-                <span className="action-title">{formatBetAmount(BetAmount.Low)}</span>
-                <span className="action-subtitle">Low stakes</span>
-              </span>
-            </motion.button>
-            <motion.button
-              onClick={() => createLobby(BetAmount.Medium)}
-              disabled={loading || !address || walletBalance < BetAmount.Medium}
-              className="create-action-btn create-medium"
-              whileHover={!loading && address && walletBalance >= BetAmount.Medium ? { scale: 1.02 } : {}}
-              whileTap={!loading && address && walletBalance >= BetAmount.Medium ? { scale: 0.98 } : {}}
-            >
-              <span className="action-icon">🔥</span>
-              <span className="action-content">
-                <span className="action-title">{formatBetAmount(BetAmount.Medium)}</span>
-                <span className="action-subtitle">Medium stakes</span>
-              </span>
-            </motion.button>
-          </div>
+        {/* Global Chat */}
+        <div className="sidebar-section chat-section">
+          <GlobalChat socketClient={socketClient} apiClient={apiClient} />
         </div>
-
-        {/* Wallet Balance - Web3 style */}
-        {address && (
-          <div className="sidebar-section wallet-section">
-            <div className="wallet-balance-card">
-              <div className="balance-label">Your Balance</div>
-              <div className="balance-amount">
-                <span className="sol-icon">◎</span>
-                <span className="balance-value">{walletBalance.toFixed(2)}</span>
-                <span className="balance-unit">SOL</span>
-              </div>
-            </div>
-          </div>
-        )}
 
       </aside>
 
@@ -475,6 +454,9 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                     <div className="card-bet-section">
                       <div className={`bet-badge-modern ${lobby.betAmountSol === 0 ? 'free' : lobby.betAmountSol === BetAmount.Low ? 'low' : 'medium'}`}>
                         {formatBetAmount(lobby.betAmountSol)}
+                      </div>
+                      <div className={`game-type-badge ${lobby.gameType === GameType.Soccer ? 'soccer' : 'fallguys'}`}>
+                        {lobby.gameType === GameType.Soccer ? '⚽ Soccer' : '🏃 Fall Guys'}
                       </div>
                       <div className={`status-badge status-${lobby.status}`}>
                         {lobby.status === 'waiting' && '⏳ Waiting'}

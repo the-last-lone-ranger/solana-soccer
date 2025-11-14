@@ -6,8 +6,8 @@
 }
 
 .player-tooltip {
-  position: fixed;
-  z-index: 1000;
+  position: fixed !important;
+  z-index: 10002 !important;
   background: var(--bg-secondary);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -20,7 +20,11 @@
   max-height: 70vh;
   overflow-y: auto;
   pointer-events: none;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
   animation: fadeInTooltip 0.2s ease-out;
+  isolation: isolate;
 }
 
 /* WoW-Style Inspection Window */

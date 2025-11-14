@@ -9,6 +9,9 @@
   },
   "dependencies": {
     "@openkitx403/client": "^0.1.0",
+    "@react-three/drei": "^9.88.13",
+    "@react-three/fiber": "^8.15.19",
+    "@react-three/rapier": "^2.2.0",
     "@solana-defender/shared": "*",
     "@solana/web3.js": "^1.87.6",
     "@vitejs/plugin-react": "^4.2.1",
@@ -17,6 +20,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0",
     "socket.io-client": "^4.8.1",
+    "three": "^0.158.0",
     "vite": "^5.0.8"
   },
   "devDependencies": {

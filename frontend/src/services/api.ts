@@ -22,6 +22,7 @@ import type {
   CreateLobbyResponse,
   JoinLobbyRequest,
   JoinLobbyResponse,
+  GameType,
 } from '@solana-defender/shared';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -485,6 +486,23 @@ export class ApiClient {
     return response.json();
   }
 
+  async getChatMessages(limit: number = 50): Promise<{ messages: Array<{
+    id: number;
+    walletAddress: string;
+    username?: string;
+    avatarUrl?: string;
+    message: string;
+    timestamp: string;
+  }> }> {
+    const response = await fetch(`${API_BASE_URL}/api/chat/messages?limit=${limit}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch chat messages');
+    }
+
+    return response.json();
+  }
+
   async getTotalSolBet(): Promise<{ totalSolBet: number }> {
     const response = await fetch(`${API_BASE_URL}/api/stats/total-sol-bet`);
     
@@ -676,6 +694,18 @@ export class ApiClient {
     }
 
     return await response.json();
+  }
+
+  async getRecentItems(): Promise<{ items: any[] }> {
+    const response = await this.authenticatedFetch('/api/items/recent');
+    
+    if (!response.ok) {
+      const clonedResponse = response.clone();
+      const error = await clonedResponse.json().catch(() => ({ error: 'Failed to get recent items' }));
+      throw new Error(error.error || 'Failed to get recent items');
+    }
+    
+    return response.json();
   }
 
   async getPlayerItems(walletAddress?: string): Promise<{ items: any[]; equipped: any[] }> {
@@ -870,10 +900,15 @@ export class ApiClient {
   }
 
   // Lobby methods
-  async getLobbies(betAmountSol?: number): Promise<{ lobbies: Lobby[] }> {
-    const url = betAmountSol !== undefined 
-      ? `/api/lobbies?betAmount=${betAmountSol}`
-      : '/api/lobbies';
+  async getLobbies(betAmountSol?: number, gameType?: GameType): Promise<{ lobbies: Lobby[] }> {
+    const params = new URLSearchParams();
+    if (betAmountSol !== undefined) {
+      params.append('betAmount', betAmountSol.toString());
+    }
+    if (gameType !== undefined) {
+      params.append('gameType', gameType);
+    }
+    const url = params.toString() ? `/api/lobbies?${params.toString()}` : '/api/lobbies';
     const fullUrl = `${API_BASE_URL}${url}`;
     console.log('[ApiClient] Fetching lobbies from:', fullUrl);
     
@@ -907,13 +942,13 @@ export class ApiClient {
     return response.json();
   }
 
-  async createLobby(betAmountSol: number): Promise<CreateLobbyResponse> {
+  async createLobby(betAmountSol: number, gameType: GameType): Promise<CreateLobbyResponse> {
     const response = await this.authenticatedFetch('/api/lobbies', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ betAmountSol } as CreateLobbyRequest),
+      body: JSON.stringify({ betAmountSol, gameType } as CreateLobbyRequest),
     });
 
     if (!response.ok) {

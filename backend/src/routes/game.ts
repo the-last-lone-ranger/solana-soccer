@@ -94,6 +94,18 @@ router.get('/leaderboard', async (req: Request, res: Response) => {
   }
 });
 
+// Get recent chat messages (public)
+router.get('/chat/messages', async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const messages = await dbQueries.getRecentChatMessages(limit);
+    res.json({ messages });
+  } catch (error) {
+    console.error('Error fetching chat messages:', error);
+    res.status(500).json({ error: 'Failed to fetch chat messages' });
+  }
+});
+
 // Get all users (public)
 router.get('/users', async (req: Request, res: Response) => {
   try {
@@ -191,7 +203,7 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
     const hasCrown = await dbQueries.hasCrown(user.address);
     const isLeader = await dbQueries.isLeader(user.address);
     
-    // Check if user holds Kicking It ($SOCCER) token
+    // Check if user holds Kicking It ($KICK) token
     const isKickItTokenHolder = await checkKickItTokenHolder(user.address);
 
     // Get level and EXP info
@@ -369,7 +381,7 @@ router.get('/token-check', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Check if user holds Kicking It ($SOCCER) token (protected)
+// Check if user holds Kicking It ($KICK) token (protected)
 router.get('/kick-it-token-check', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.openkitx403User!;
@@ -388,7 +400,7 @@ router.post('/item-drop', requireAuth, async (req: Request, res: Response) => {
     const user = req.openkitx403User!;
     const { tokenBalance = 0, nftCount = 0 }: ItemDropRequest = req.body;
 
-    // Check if user holds the Kicking It ($SOCCER) token
+    // Check if user holds the Kicking It ($KICK) token
     const hasKickItToken = await checkKickItTokenHolder(user.address);
 
     // Generate item based on token holdings
@@ -422,6 +434,48 @@ router.post('/item-drop', requireAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error generating item drop:', error);
     res.status(500).json({ error: 'Failed to generate item drop' });
+  }
+});
+
+// Get recently found items (protected - items found in last 5 minutes)
+router.get('/items/recent', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.openkitx403User!;
+    
+    // Get items found in the last 5 minutes
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    
+    const result = await db.execute({
+      sql: `
+        SELECT 
+          id,
+          item_id,
+          item_name,
+          item_type,
+          rarity,
+          stats,
+          found_at
+        FROM player_items
+        WHERE wallet_address = ? AND found_at > ?
+        ORDER BY found_at DESC
+      `,
+      args: [user.address, fiveMinutesAgo],
+    });
+    
+    const items = result.rows.map((row: any) => ({
+      id: row.id,
+      itemId: row.item_id,
+      name: row.item_name,
+      type: row.item_type,
+      rarity: row.rarity,
+      stats: row.stats ? JSON.parse(row.stats) : undefined,
+      foundAt: row.found_at,
+    }));
+    
+    res.json({ items });
+  } catch (error) {
+    console.error('Error getting recent items:', error);
+    res.status(500).json({ error: 'Failed to get recent items' });
   }
 });
 

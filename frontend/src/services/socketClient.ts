@@ -7,6 +7,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_U
 export class SocketClient {
   private socket: Socket | null = null;
   private jwtToken: string | null = null;
+  private pendingCallbacks?: Map<string, Array<(...args: any[]) => void>>;
 
   connect(token: string): void {
     if (this.socket?.connected) {
@@ -30,6 +31,20 @@ export class SocketClient {
     this.socket.on('error', (error) => {
       console.error('[Socket] Error:', error);
     });
+
+    // Attach any pending callbacks that were registered before socket was created
+    if (this.pendingCallbacks) {
+      for (const [event, callbacks] of this.pendingCallbacks.entries()) {
+        callbacks.forEach(callback => {
+          this.socket!.on(event, callback);
+          // If socket is already connected and we're attaching a 'connect' callback, call it immediately
+          if (event === 'connect' && this.socket!.connected) {
+            setTimeout(() => callback(), 0);
+          }
+        });
+      }
+      this.pendingCallbacks.clear();
+    }
   }
 
   disconnect(): void {
@@ -150,6 +165,42 @@ export class SocketClient {
   onWebRTCIceCandidate(callback: (data: { fromAddress: string; candidate: RTCIceCandidateInit }) => void): void {
     if (!this.socket) return;
     this.socket.on('webrtc:ice', callback);
+  }
+
+  // Generic emit method
+  emit(event: string, data: any): void {
+    if (!this.socket) return;
+    this.socket.emit(event, data);
+  }
+
+  // Generic on method
+  on(event: string, callback: (...args: any[]) => void): void {
+    // For connection events, we need to handle them even if socket doesn't exist yet
+    // Store callbacks and attach them when socket is created
+    if (event === 'connect' || event === 'disconnect') {
+      if (this.socket) {
+        this.socket.on(event, callback);
+        // If socket is already connected and we're listening for 'connect', call it immediately
+        if (event === 'connect' && this.socket.connected) {
+          // Call callback asynchronously to avoid issues
+          setTimeout(() => callback(), 0);
+        }
+      } else {
+        // Store callback to attach when socket is created
+        // We'll attach it in the connect method
+        if (!this.pendingCallbacks) {
+          this.pendingCallbacks = new Map();
+        }
+        if (!this.pendingCallbacks.has(event)) {
+          this.pendingCallbacks.set(event, []);
+        }
+        this.pendingCallbacks.get(event)!.push(callback);
+      }
+      return;
+    }
+    
+    if (!this.socket) return;
+    this.socket.on(event, callback);
   }
 
   // Remove listeners

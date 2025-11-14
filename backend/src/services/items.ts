@@ -147,7 +147,7 @@ function getTokenMultiplier(tokenBalance: number, nftCount: number, hasKickItTok
     multiplier *= nftBonus;
   }
   
-  // Kicking It ($SOCCER) token holder bonus - significant boost (2.5x multiplier)
+  // Kicking It ($KICK) token holder bonus - significant boost (2.5x multiplier)
   if (hasKickItToken) {
     multiplier *= 2.5;
   }
