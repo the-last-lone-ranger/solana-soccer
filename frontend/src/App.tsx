@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Link } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useWallet } from './hooks/useWallet.js';
 import { useTheme } from './contexts/ThemeContext.js';
 import { ApiClient } from './services/api.js';
@@ -23,6 +24,7 @@ import { Inventory } from './components/Inventory.js';
 import { RecentRounds } from './components/RecentRounds.js';
 import { UserDropdown } from './components/UserDropdown.js';
 import { GameResultsDialog } from './components/GameResultsDialog.js';
+import { LoadingSpinner } from './components/LoadingSpinner.js';
 import { VoiceChatService } from './services/voiceChat.js';
 import type { GameStats } from './game/Game.js';
 import type { GameItem, Match, Lobby } from '@solana-defender/shared';
@@ -574,9 +576,15 @@ function App() {
       )}
 
       <div className="app-content">
-        <Routes>
-          <Route path="/" element={
-            <>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
               <div className="sidebar">
                 <WalletConnect />
                 {authenticated && <TokenGate apiClient={apiClient} />}
@@ -678,10 +686,15 @@ function App() {
                   </div>
                 </div>
               </div>
-            </>
+            </motion.div>
           } />
           <Route path="/lobbies" element={
-            <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
               <div className="sidebar">
                 <WalletConnect />
                 {authenticated && <TokenGate apiClient={apiClient} />}
@@ -694,7 +707,7 @@ function App() {
                   onLobbyStart={handleLobbyStart}
                 />
               </div>
-            </>
+            </motion.div>
           } />
           <Route path="/lobby/:lobbyId" element={
             <div className="app-content" style={{ gridTemplateColumns: '1fr' }}>
@@ -712,7 +725,12 @@ function App() {
             </div>
           } />
           <Route path="/leaderboard" element={
-            <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
               <div className="sidebar">
                 <WalletConnect />
                 {authenticated && <TokenGate apiClient={apiClient} />}
@@ -722,10 +740,15 @@ function App() {
               <div className="main-content">
                 <Leaderboard apiClient={apiClient} />
               </div>
-            </>
+            </motion.div>
           } />
           <Route path="/users" element={
-            <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
               <div className="sidebar">
                 <WalletConnect />
                 {authenticated && <TokenGate apiClient={apiClient} />}
@@ -735,7 +758,7 @@ function App() {
               <div className="main-content">
                 <Users apiClient={apiClient} />
               </div>
-            </>
+            </motion.div>
           } />
           <Route path="/profile" element={
             address && profileLoaded ? (
@@ -763,7 +786,8 @@ function App() {
               <div>Loading game...</div>
             )
           } />
-        </Routes>
+          </Routes>
+        </AnimatePresence>
       </div>
 
       {gameStats && (
