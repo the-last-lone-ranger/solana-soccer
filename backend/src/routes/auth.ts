@@ -119,6 +119,9 @@ router.get('/google/callback', async (req: Request, res: Response) => {
                 encrypted_private_key: null,
                 voice_enabled: fallbackPlayer.voice_enabled,
                 push_to_talk_key: fallbackPlayer.push_to_talk_key,
+                last_username_change: fallbackPlayer.last_username_change,
+                level: fallbackPlayer.level,
+                exp: fallbackPlayer.exp,
               };
             }
           } else {
