@@ -314,169 +314,254 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
 
   return (
     <div className="lobby-browser">
-      <div className="lobby-header">
-        <h2>🎮 Join a Lobby</h2>
-      </div>
-
-      {error && <div className="error-message">{error}</div>}
-
-      <div className="bet-amount-filters">
-        <button
-          className={selectedBetAmount === null ? 'active' : ''}
-          onClick={() => setSelectedBetAmount(null)}
-        >
-          All
-        </button>
-        <button
-          className={selectedBetAmount === BetAmount.Free ? 'active' : ''}
-          onClick={() => setSelectedBetAmount(BetAmount.Free)}
-        >
-          {getBetAmountLabel(BetAmount.Free)}
-        </button>
-        <button
-          className={selectedBetAmount === BetAmount.Low ? 'active' : ''}
-          onClick={() => setSelectedBetAmount(BetAmount.Low)}
-        >
-          {getBetAmountLabel(BetAmount.Low)}
-        </button>
-        <button
-          className={selectedBetAmount === BetAmount.Medium ? 'active' : ''}
-          onClick={() => setSelectedBetAmount(BetAmount.Medium)}
-        >
-          {getBetAmountLabel(BetAmount.Medium)}
-        </button>
-      </div>
-
-      <div className="create-lobby-section">
-        <h3>Create New Lobby</h3>
-        <div className="create-buttons">
-          <button
-            onClick={() => createLobby(BetAmount.Free)}
-            disabled={loading || !address}
-            className="create-btn free"
-          >
-            Create Free Lobby
-          </button>
-          <button
-            onClick={() => createLobby(BetAmount.Low)}
-            disabled={loading || !address || walletBalance < BetAmount.Low}
-            className="create-btn low"
-          >
-            Create {formatBetAmount(BetAmount.Low)} Lobby
-          </button>
-          <button
-            onClick={() => createLobby(BetAmount.Medium)}
-            disabled={loading || !address || walletBalance < BetAmount.Medium}
-            className="create-btn medium"
-          >
-            Create {formatBetAmount(BetAmount.Medium)} Lobby
-          </button>
+      {/* Notion-style Sidebar */}
+      <aside className="lobby-sidebar">
+        <div className="sidebar-header">
+          <h2 className="sidebar-title">Lobbies</h2>
+          <p className="sidebar-subtitle">Join or create a game</p>
         </div>
-      </div>
 
-      <div className="lobbies-list">
-        <h3>Available Lobbies</h3>
-        {lobbies.length === 0 ? (
-          <div className="no-lobbies">No lobbies available. Create one to get started!</div>
-        ) : (
-          lobbies.map((lobby) => {
-            const countdown = countdowns.get(lobby.id) ?? lobby.countdownSeconds;
-            const isJoined = joinedLobbyId === lobby.id;
-            const canJoin = lobby.status === 'waiting' || lobby.status === 'starting';
-            const playerCount = lobby.players?.length || 0;
-            const isFull = playerCount >= (lobby.maxPlayers ?? 50);
-
-            return (
-              <div
-                key={lobby.id}
-                className={`lobby-card ${isJoined ? 'joined' : ''} ${lobby.status}`}
-              >
-                <div className="lobby-info">
-                  <div className="lobby-bet">
-                    <span className="bet-badge">{formatBetAmount(lobby.betAmountSol)}</span>
-                    <span className="lobby-status">{lobby.status}</span>
-                  </div>
-                  <div className="lobby-players">
-                    <span>
-                      {lobby.players?.length || 0} / {lobby.maxPlayers ?? 50} players
-                    </span>
-                  </div>
-                  {countdown !== undefined && countdown !== null && (
-                    <div className="countdown">
-                      ⏱️ Game starting in {countdown}s
-                    </div>
-                  )}
-                  {lobby.status === 'active' && (
-                    <div className="game-active">🎮 Game in progress</div>
-                  )}
-                </div>
-                <div className="lobby-players-list">
-                  {lobby.players.map((player) => {
-                    const displayName = player.username || `${player.walletAddress.slice(0, 6)}...`;
-                    const avatar = player.avatarUrl || (player.username ? player.username.slice(0, 2).toUpperCase() : player.walletAddress.slice(2, 4).toUpperCase());
-                    const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
-                    
-                    return (
-                      <PlayerTooltip
-                        key={player.walletAddress}
-                        walletAddress={player.walletAddress}
-                        apiClient={apiClient}
-                      >
-                        <div className="player-tag">
-                          <div className="player-avatar-small">
-                            {player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl) ? (
-                              <span className="avatar-emoji-tiny">{player.avatarUrl}</span>
-                            ) : player.avatarUrl ? (
-                              <img src={player.avatarUrl} alt={displayName} className="avatar-image-tiny" />
-                            ) : (
-                              <div className="avatar-initials-tiny">{avatar}</div>
-                            )}
-                          </div>
-                          <span className="player-name-small">{displayName}</span>
-                        </div>
-                      </PlayerTooltip>
-                    );
-                  })}
-                </div>
-                <div className="lobby-actions">
-                  {isJoined ? (
-                    <button
-                      onClick={() => leaveLobby(lobby.id)}
-                      disabled={loading || lobby.status === 'active'}
-                      className="leave-btn"
-                    >
-                      Leave
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
-                        disabled={
-                          loading ||
-                          !canJoin ||
-                          isFull ||
-                          !address ||
-                          (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
-                        }
-                        className="join-btn"
-                      >
-                        {isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}
-                      </button>
-                      <button
-                        className="spectate-btn"
-                        onClick={() => spectateLobby(lobby.id)}
-                        title="Watch this lobby without joining"
-                      >
-                        👁️ Spectate
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
+        {error && (
+          <div className="sidebar-error">
+            <span className="error-icon">⚠️</span>
+            <span className="error-text">{error}</span>
+          </div>
         )}
-      </div>
+
+        {/* Filters Section - Notion style */}
+        <div className="sidebar-section">
+          <div className="section-label">Filter by stake</div>
+          <div className="filter-group">
+            <button
+              className={`filter-chip ${selectedBetAmount === null ? 'active' : ''}`}
+              onClick={() => setSelectedBetAmount(null)}
+            >
+              <span className="chip-icon">🌐</span>
+              <span className="chip-label">All</span>
+            </button>
+            <button
+              className={`filter-chip ${selectedBetAmount === BetAmount.Free ? 'active' : ''}`}
+              onClick={() => setSelectedBetAmount(BetAmount.Free)}
+            >
+              <span className="chip-icon">🆓</span>
+              <span className="chip-label">{getBetAmountLabel(BetAmount.Free)}</span>
+            </button>
+            <button
+              className={`filter-chip ${selectedBetAmount === BetAmount.Low ? 'active' : ''}`}
+              onClick={() => setSelectedBetAmount(BetAmount.Low)}
+            >
+              <span className="chip-icon">💵</span>
+              <span className="chip-label">{getBetAmountLabel(BetAmount.Low)}</span>
+            </button>
+            <button
+              className={`filter-chip ${selectedBetAmount === BetAmount.Medium ? 'active' : ''}`}
+              onClick={() => setSelectedBetAmount(BetAmount.Medium)}
+            >
+              <span className="chip-icon">💰</span>
+              <span className="chip-label">{getBetAmountLabel(BetAmount.Medium)}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Create Section - Monday.com style */}
+        <div className="sidebar-section">
+          <div className="section-label">Create lobby</div>
+          <div className="create-group">
+            <button
+              onClick={() => createLobby(BetAmount.Free)}
+              disabled={loading || !address}
+              className="create-action-btn create-free"
+            >
+              <span className="action-icon">✨</span>
+              <span className="action-content">
+                <span className="action-title">Free Play</span>
+                <span className="action-subtitle">No stake required</span>
+              </span>
+            </button>
+            <button
+              onClick={() => createLobby(BetAmount.Low)}
+              disabled={loading || !address || walletBalance < BetAmount.Low}
+              className="create-action-btn create-low"
+            >
+              <span className="action-icon">💎</span>
+              <span className="action-content">
+                <span className="action-title">{formatBetAmount(BetAmount.Low)}</span>
+                <span className="action-subtitle">Low stakes</span>
+              </span>
+            </button>
+            <button
+              onClick={() => createLobby(BetAmount.Medium)}
+              disabled={loading || !address || walletBalance < BetAmount.Medium}
+              className="create-action-btn create-medium"
+            >
+              <span className="action-icon">🔥</span>
+              <span className="action-content">
+                <span className="action-title">{formatBetAmount(BetAmount.Medium)}</span>
+                <span className="action-subtitle">Medium stakes</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Wallet Balance - Web3 style */}
+        {address && (
+          <div className="sidebar-section wallet-section">
+            <div className="wallet-balance-card">
+              <div className="balance-label">Your Balance</div>
+              <div className="balance-amount">
+                <span className="sol-icon">◎</span>
+                <span className="balance-value">{walletBalance.toFixed(2)}</span>
+                <span className="balance-unit">SOL</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+
+      {/* Main Content Area - Notion/Monday.com style */}
+      <main className="lobby-main">
+        <div className="main-header">
+          <div className="header-content">
+            <h1 className="main-title">Available Lobbies</h1>
+            <p className="main-subtitle">
+              {lobbies.length === 0 
+                ? 'No lobbies yet. Create one to get started!' 
+                : `${lobbies.length} ${lobbies.length === 1 ? 'lobby' : 'lobbies'} available`}
+            </p>
+          </div>
+        </div>
+
+        {lobbies.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🎮</div>
+            <h3 className="empty-title">No lobbies available</h3>
+            <p className="empty-description">Be the first to create a lobby and start playing!</p>
+          </div>
+        ) : (
+          <div className="lobbies-grid">
+            {lobbies.map((lobby) => {
+              const countdown = countdowns.get(lobby.id) ?? lobby.countdownSeconds;
+              const isJoined = joinedLobbyId === lobby.id;
+              const canJoin = lobby.status === 'waiting' || lobby.status === 'starting';
+              const playerCount = lobby.players?.length || 0;
+              const isFull = playerCount >= (lobby.maxPlayers ?? 50);
+
+              return (
+                <div
+                  key={lobby.id}
+                  className={`lobby-card-modern ${isJoined ? 'joined' : ''} ${lobby.status}`}
+                >
+                  {/* Card Header */}
+                  <div className="card-header">
+                    <div className="card-bet-section">
+                      <div className={`bet-badge-modern ${lobby.betAmountSol === 0 ? 'free' : lobby.betAmountSol === BetAmount.Low ? 'low' : 'medium'}`}>
+                        {formatBetAmount(lobby.betAmountSol)}
+                      </div>
+                      <div className={`status-badge status-${lobby.status}`}>
+                        {lobby.status === 'waiting' && '⏳ Waiting'}
+                        {lobby.status === 'starting' && '🚀 Starting'}
+                        {lobby.status === 'active' && '🎮 Active'}
+                        {lobby.status === 'finished' && '✅ Finished'}
+                      </div>
+                    </div>
+                    {countdown !== undefined && countdown !== null && (
+                      <div className="countdown-badge">
+                        <span className="countdown-icon">⏱️</span>
+                        <span className="countdown-text">{countdown}s</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="card-body">
+                    <div className="player-count-section">
+                      <div className="player-count">
+                        <span className="count-number">{playerCount}</span>
+                        <span className="count-separator">/</span>
+                        <span className="count-max">{lobby.maxPlayers ?? 50}</span>
+                      </div>
+                      <span className="player-label">players</span>
+                    </div>
+
+                    {/* Players List */}
+                    {lobby.players && lobby.players.length > 0 && (
+                      <div className="players-preview">
+                        <div className="players-avatars">
+                          {lobby.players.slice(0, 8).map((player) => {
+                            const displayName = player.username || `${player.walletAddress.slice(0, 6)}...`;
+                            const avatar = player.avatarUrl || (player.username ? player.username.slice(0, 2).toUpperCase() : player.walletAddress.slice(2, 4).toUpperCase());
+                            const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
+                            
+                            return (
+                              <PlayerTooltip
+                                key={player.walletAddress}
+                                walletAddress={player.walletAddress}
+                                apiClient={apiClient}
+                              >
+                                <div className="player-avatar-modern">
+                                  {player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl) ? (
+                                    <span className="avatar-emoji">{player.avatarUrl}</span>
+                                  ) : player.avatarUrl ? (
+                                    <img src={player.avatarUrl} alt={displayName} className="avatar-img" />
+                                  ) : (
+                                    <div className="avatar-initials">{avatar}</div>
+                                  )}
+                                </div>
+                              </PlayerTooltip>
+                            );
+                          })}
+                          {lobby.players.length > 8 && (
+                            <div className="avatar-more">+{lobby.players.length - 8}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="card-footer">
+                    {isJoined ? (
+                      <button
+                        onClick={() => leaveLobby(lobby.id)}
+                        disabled={loading || lobby.status === 'active'}
+                        className="action-button leave-button"
+                      >
+                        <span className="button-icon">←</span>
+                        <span className="button-text">Leave</span>
+                      </button>
+                    ) : (
+                      <div className="action-group">
+                        <button
+                          onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
+                          disabled={
+                            loading ||
+                            !canJoin ||
+                            isFull ||
+                            !address ||
+                            (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
+                          }
+                          className={`action-button join-button ${isFull ? 'disabled' : ''}`}
+                        >
+                          <span className="button-icon">→</span>
+                          <span className="button-text">{isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}</span>
+                        </button>
+                        <button
+                          className="action-button spectate-button"
+                          onClick={() => spectateLobby(lobby.id)}
+                          title="Watch this lobby without joining"
+                        >
+                          <span className="button-icon">👁️</span>
+                          <span className="button-text">Watch</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
