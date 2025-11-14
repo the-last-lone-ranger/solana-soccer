@@ -1,23 +1,29 @@
 .soccer-game-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px;
+  align-items: stretch;
+  padding: 10px;
   background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   font-family: var(--font-primary, 'Inter', sans-serif);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .soccer-game-header {
   text-align: center;
   color: white;
-  margin-bottom: 30px;
-  padding: 20px;
+  margin-bottom: 10px;
+  padding: 10px 15px;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid rgba(99, 102, 241, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .soccer-game-header h2 {
@@ -45,40 +51,143 @@
 .soccer-game-canvas-wrapper {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 15px;
+  border-radius: 12px;
+  padding: 0;
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(99, 102, 241, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   overflow: hidden;
+  width: 100%;
   max-width: 100%;
   border: 1px solid rgba(99, 102, 241, 0.3);
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: 0;
+  height: 100%;
 }
 
 .soccer-game-canvas {
   display: block;
-  border: 2px solid rgba(99, 102, 241, 0.4);
-  border-radius: 12px;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  border: none;
+  border-radius: 0;
   background: #7CB342;
   cursor: crosshair;
   outline: none;
-  box-shadow: 
-    inset 0 2px 4px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(99, 102, 241, 0.2);
+  box-shadow: none;
+  /* Prevent blurriness - DPR handling is done in JS for crisp rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  object-fit: fill;
+}
+
+/* Desktop: Full width */
+@media (min-width: 768px) {
+  .soccer-game-container {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .soccer-game-canvas-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .soccer-game-canvas {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .soccer-game-controls {
-  margin-top: 30px;
-  padding: 20px 30px;
+  margin-top: 10px;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
-  text-align: center;
+  border-radius: 12px;
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(99, 102, 241, 0.2);
   border: 1px solid rgba(99, 102, 241, 0.2);
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.soccer-game-controls.collapsed {
+  padding: 8px 20px;
+}
+
+.soccer-game-controls.expanded {
+  padding: 10px 20px;
+}
+
+.controls-toggle-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  font-size: clamp(0.875rem, 1.5vw, 1rem);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 8px;
+}
+
+.controls-toggle-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: #a78bfa;
+}
+
+.controls-toggle-btn:active {
+  transform: scale(0.98);
+}
+
+.controls-toggle-icon {
+  font-size: 0.75rem;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+.soccer-game-controls.expanded .controls-toggle-icon {
+  transform: rotate(0deg);
+}
+
+.soccer-game-controls.collapsed .controls-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.controls-content {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  text-align: center;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
 }
 
 .soccer-game-controls p {
@@ -111,6 +220,84 @@
   font-weight: 700;
   color: #a78bfa;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.voice-status {
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.voice-indicator.active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.voice-indicator .voice-icon {
+  font-size: 1.2em;
+}
+
+.audio-level-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+  border-radius: 3px;
+  transition: width 0.1s ease;
+  min-width: 2px;
+}
+
+.voice-test-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.voice-test-control:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-test-control input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.voice-debug-info {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  word-break: break-all;
 }
 
 .voice-toggle-btn {

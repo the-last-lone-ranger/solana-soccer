@@ -15,6 +15,10 @@ export class VoiceChatService {
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
   private onConnectionStateChangeCallback?: (state: RTCPeerConnectionState) => void;
   private onSpeakingStateChangeCallback?: (isSpeaking: boolean) => void;
+  private localAudioMonitor: HTMLAudioElement | null = null; // For testing - allows hearing your own voice
+  private enableLocalMonitor: boolean = false; // Enable local audio monitoring for testing
+  private audioContext: AudioContext | null = null; // For audio level analysis
+  private analyser: AnalyserNode | null = null; // For audio level analysis
 
   constructor() {
     // Initialize with STUN servers for NAT traversal
@@ -74,11 +78,121 @@ export class VoiceChatService {
         });
       }
 
+      // Set up local audio monitor for testing (if enabled)
+      this.setupLocalAudioMonitor();
+
+      // Initialize audio level analyzer
+      this.initializeAudioLevelAnalyzer();
+
       this.isEnabled = true;
+      console.log('[VoiceChat] ✅ Initialized with', this.localStream.getAudioTracks().length, 'audio track(s)');
+      this.localStream.getAudioTracks().forEach((track, index) => {
+        console.log(`[VoiceChat] Track ${index}:`, {
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          settings: track.getSettings(),
+        });
+      });
     } catch (error) {
       console.error('Error initializing voice chat:', error);
       throw new Error('Failed to access microphone. Please check permissions.');
     }
+  }
+
+  /**
+   * Set up local audio monitor for testing (allows hearing your own voice)
+   */
+  private setupLocalAudioMonitor(): void {
+    if (!this.localStream || !this.enableLocalMonitor) {
+      return;
+    }
+
+    // Clean up existing monitor
+    if (this.localAudioMonitor) {
+      this.localAudioMonitor.pause();
+      this.localAudioMonitor.srcObject = null;
+      this.localAudioMonitor = null;
+    }
+
+    // Create new audio element for local monitoring
+    this.localAudioMonitor = new Audio();
+    this.localAudioMonitor.srcObject = this.localStream;
+    this.localAudioMonitor.volume = 0.5; // Lower volume to prevent feedback
+    this.localAudioMonitor.muted = false;
+
+    // Try to play (may fail due to autoplay restrictions)
+    this.localAudioMonitor.play().catch((err) => {
+      console.warn('[VoiceChat] Could not start local audio monitor (autoplay restriction):', err);
+    });
+
+    console.log('[VoiceChat] 🔊 Local audio monitor enabled - you can hear yourself');
+  }
+
+  /**
+   * Enable/disable local audio monitoring (for testing)
+   */
+  setLocalAudioMonitor(enabled: boolean): void {
+    this.enableLocalMonitor = enabled;
+    if (this.localStream) {
+      this.setupLocalAudioMonitor();
+    }
+  }
+
+  /**
+   * Get local audio monitor state
+   */
+  getLocalAudioMonitor(): boolean {
+    return this.enableLocalMonitor;
+  }
+
+  /**
+   * Initialize audio level analyzer (call once)
+   */
+  private initializeAudioLevelAnalyzer(): void {
+    if (!this.localStream || this.audioContext) {
+      return;
+    }
+
+    try {
+      this.audioContext = new AudioContext();
+      this.analyser = this.audioContext.createAnalyser();
+      const microphone = this.audioContext.createMediaStreamSource(this.localStream);
+      
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.8;
+      microphone.connect(this.analyser);
+    } catch (error) {
+      console.error('[VoiceChat] Error initializing audio level analyzer:', error);
+    }
+  }
+
+  /**
+   * Get audio level from local stream (for visualization)
+   * Returns a value between 0 and 1
+   */
+  getAudioLevel(): number {
+    if (!this.localStream || !this.analyser) {
+      this.initializeAudioLevelAnalyzer();
+      if (!this.analyser) {
+        return 0;
+      }
+    }
+
+    if (!this.analyser) {
+      return 0;
+    }
+
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.getByteFrequencyData(dataArray);
+
+    // Calculate average volume
+    const sum = dataArray.reduce((a, b) => a + b, 0);
+    const average = sum / dataArray.length;
+    const normalizedLevel = Math.min(average / 255, 1);
+
+    return normalizedLevel;
   }
 
   /**
@@ -276,6 +390,20 @@ export class VoiceChatService {
    * Clean up and close connections
    */
   cleanup(): void {
+    // Clean up local audio monitor
+    if (this.localAudioMonitor) {
+      this.localAudioMonitor.pause();
+      this.localAudioMonitor.srcObject = null;
+      this.localAudioMonitor = null;
+    }
+
+    // Clean up audio level analyzer
+    if (this.audioContext) {
+      this.audioContext.close().catch(console.error);
+      this.audioContext = null;
+      this.analyser = null;
+    }
+
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
