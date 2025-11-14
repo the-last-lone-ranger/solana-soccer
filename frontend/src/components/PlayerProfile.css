@@ -350,6 +350,68 @@
   flex-direction: column;
   gap: 1.25rem;
   justify-content: center;
+  flex: 1;
+}
+
+/* Inline Wallet Section */
+.wallet-section-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.wallet-card-inline {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  transition: all var(--transition-base);
+  cursor: default;
+}
+
+.wallet-card-inline:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.wallet-card-inline .wallet-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.wallet-card-inline .wallet-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 1rem;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.copy-address-btn-inline {
+  padding: 0.375rem 0.75rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-primary);
+  width: 100%;
+}
+
+.copy-address-btn-inline:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .player-profile h2 {
@@ -587,7 +649,8 @@
 /* Section Containers - Notion Style */
 .equipped-section,
 .inventory-section,
-.voice-settings-section {
+.voice-settings-section,
+.character-panel-section {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -598,19 +661,375 @@
 
 .equipped-section:hover,
 .inventory-section:hover,
-.voice-settings-section:hover {
+.voice-settings-section:hover,
+.character-panel-section:hover {
   box-shadow: var(--shadow-md);
 }
 
 .equipped-section h3,
 .inventory-section h3,
-.voice-settings-section h3 {
+.voice-settings-section h3,
+.character-panel-section h3 {
   margin: 0 0 1.5rem 0;
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text-primary);
   font-family: var(--font-heading);
   letter-spacing: -0.01em;
+}
+
+/* WoW-Inspired Character Panel */
+.character-panel {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.character-avatar-container {
+  flex: 1;
+  min-width: 400px;
+  display: flex;
+  justify-content: center;
+}
+
+.character-avatar-wrapper {
+  position: relative;
+  width: 300px;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.character-avatar,
+.character-avatar-placeholder {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--border-color);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
+  background: var(--bg-tertiary);
+}
+
+.character-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+}
+
+/* Equipment Slots - WoW Style */
+.equipment-slots {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.equipment-slot {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border: 2px solid rgba(139, 139, 139, 0.5);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.equipment-slot:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.15);
+  z-index: 10;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* Slot Positions */
+.equipment-slot-head {
+  top: 0;
+  left: 50%;
+  margin-left: -32px; /* Half of slot width (64px) */
+}
+
+.equipment-slot-shoulders {
+  top: 70px;
+  left: 0;
+}
+
+.equipment-slot-chest {
+  top: 140px;
+  left: 50%;
+  margin-left: -32px;
+}
+
+.equipment-slot-legs {
+  top: 210px;
+  left: 50%;
+  margin-left: -32px;
+}
+
+.equipment-slot-feet {
+  top: 280px;
+  left: 50%;
+  margin-left: -32px;
+}
+
+.equipment-slot-hands {
+  top: 140px;
+  right: 0;
+}
+
+.equipment-slot-mainhand {
+  bottom: 70px;
+  left: 0;
+}
+
+.equipment-slot-offhand {
+  bottom: 70px;
+  right: 0;
+}
+
+.equipment-slot-trinket {
+  top: 70px;
+  right: 0;
+}
+
+/* Empty Slot */
+.empty-slot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(139, 139, 139, 0.5);
+  font-size: 1.5rem;
+}
+
+.slot-icon-placeholder {
+  font-size: 2rem;
+  font-weight: 300;
+  opacity: 0.3;
+}
+
+/* Equipped Item Slot */
+.equipped-item-slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--rarity-color, rgba(139, 139, 139, 0.5));
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.equipped-item-slot.common {
+  border-color: #9ca3af;
+  box-shadow: 0 0 10px rgba(156, 163, 175, 0.3);
+}
+
+.equipped-item-slot.rare {
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+.equipped-item-slot.epic {
+  border-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+}
+
+.equipped-item-slot.legendary {
+  border-color: #f59e0b;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.7);
+  animation: legendary-glow 2s ease-in-out infinite;
+}
+
+@keyframes legendary-glow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(245, 158, 11, 1);
+  }
+}
+
+.item-slot-icon {
+  font-size: 2rem;
+  z-index: 2;
+  position: relative;
+}
+
+.item-slot-glow {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: radial-gradient(circle, var(--rarity-color, transparent) 0%, transparent 70%);
+  opacity: 0.3;
+  border-radius: 4px;
+  z-index: 0;
+}
+
+.unequip-slot-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(0, 0, 0, 0.7);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 3;
+}
+
+.equipped-item-slot:hover .unequip-slot-btn {
+  opacity: 1;
+}
+
+.unequip-slot-btn:hover {
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  transform: scale(1.2);
+}
+
+.unequip-slot-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Equipped Items List */
+.equipped-items-list {
+  flex: 1;
+  min-width: 300px;
+}
+
+.equipped-items-list h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+}
+
+.equipped-items-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.equipped-item-mini {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 2px solid var(--rarity-color, var(--border-color));
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  cursor: default;
+}
+
+.equipped-item-mini:hover {
+  background: var(--bg-hover);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.equipped-item-mini.common {
+  border-color: #9ca3af;
+}
+
+.equipped-item-mini.rare {
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+}
+
+.equipped-item-mini.epic {
+  border-color: #a855f7;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+.equipped-item-mini.legendary {
+  border-color: #f59e0b;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.item-icon-mini {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.item-info-mini {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name-mini {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.item-type-mini {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.unequip-btn-mini {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.unequip-btn-mini:hover {
+  background: #dc2626;
+  color: white;
+  transform: scale(1.1);
+}
+
+.unequip-btn-mini:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Equipped Items Grid */
@@ -1045,8 +1464,23 @@
 
   .equipped-section,
   .inventory-section,
-  .voice-settings-section {
+  .voice-settings-section,
+  .character-panel-section {
     padding: 1.5rem;
+  }
+
+  .character-panel {
+    flex-direction: column;
+  }
+
+  .character-avatar-container {
+    min-width: 100%;
+  }
+
+  .character-avatar-wrapper {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
   }
 }
 
@@ -1078,5 +1512,40 @@
   .inventory-grid,
   .equipped-items-grid {
     grid-template-columns: 1fr;
+  }
+
+  .character-panel-section {
+    padding: 1rem;
+  }
+
+  .character-avatar-wrapper {
+    width: 100%;
+    height: 350px;
+  }
+
+  .character-avatar,
+  .character-avatar-placeholder {
+    width: 150px;
+    height: 150px;
+  }
+
+  .equipment-slot {
+    width: 48px;
+    height: 48px;
+  }
+
+  .equipment-slot-head,
+  .equipment-slot-chest,
+  .equipment-slot-legs,
+  .equipment-slot-feet {
+    margin-left: -24px; /* Half of mobile slot width (48px) */
+  }
+
+  .item-slot-icon {
+    font-size: 1.5rem;
+  }
+
+  .equipped-items-list {
+    min-width: 100%;
   }
 }

@@ -1,4 +1,4 @@
-import type { GameItem } from '@solana-defender/shared';
+import type { GameItem, ItemStats } from '@solana-defender/shared';
 import { ItemRarity, ItemType } from '@solana-defender/shared';
 
 // Item definitions - Expanded pool with many more items
@@ -81,6 +81,56 @@ const BASE_DROP_RATES = {
   [ItemRarity.Legendary]: 0.001, // 0.1% chance (was 0.5%)
 };
 
+// Generate stats based on item type and rarity
+function generateItemStats(itemType: ItemType, rarity: ItemRarity): ItemStats {
+  const stats: ItemStats = {};
+  
+  // Base stat ranges by rarity
+  const rarityMultipliers = {
+    [ItemRarity.Common]: { min: 1, max: 5 },
+    [ItemRarity.Rare]: { min: 5, max: 15 },
+    [ItemRarity.Epic]: { min: 15, max: 30 },
+    [ItemRarity.Legendary]: { min: 30, max: 50 },
+  };
+  
+  const range = rarityMultipliers[rarity];
+  const randomInRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+  
+  switch (itemType) {
+    case ItemType.Weapon:
+      stats.attack = randomInRange(range.min, range.max);
+      stats.critChance = randomInRange(1, Math.floor(range.max / 3));
+      stats.critDamage = randomInRange(Math.floor(range.min / 2), Math.floor(range.max / 2));
+      break;
+    case ItemType.Shield:
+      stats.defense = randomInRange(range.min, range.max);
+      stats.health = randomInRange(Math.floor(range.min / 2), Math.floor(range.max / 2));
+      break;
+    case ItemType.PowerUp:
+      stats.speed = randomInRange(range.min, Math.floor(range.max * 1.5));
+      stats.health = randomInRange(Math.floor(range.min / 2), range.max);
+      break;
+    case ItemType.Cosmetic:
+      // Cosmetics have smaller stat bonuses but can have any stat
+      const cosmeticRange = { min: Math.floor(range.min / 2), max: Math.floor(range.max / 2) };
+      const statTypes = ['attack', 'defense', 'speed', 'health'];
+      const selectedStat = statTypes[Math.floor(Math.random() * statTypes.length)];
+      if (selectedStat === 'attack') stats.attack = randomInRange(cosmeticRange.min, cosmeticRange.max);
+      else if (selectedStat === 'defense') stats.defense = randomInRange(cosmeticRange.min, cosmeticRange.max);
+      else if (selectedStat === 'speed') stats.speed = randomInRange(cosmeticRange.min, cosmeticRange.max);
+      else if (selectedStat === 'health') stats.health = randomInRange(cosmeticRange.min, cosmeticRange.max);
+      break;
+    case ItemType.Crown:
+      // Crowns are special - they give balanced stats
+      stats.attack = randomInRange(Math.floor(range.min / 2), Math.floor(range.max / 2));
+      stats.defense = randomInRange(Math.floor(range.min / 2), Math.floor(range.max / 2));
+      stats.speed = randomInRange(Math.floor(range.min / 2), Math.floor(range.max / 2));
+      break;
+  }
+  
+  return stats;
+}
+
 // Token multipliers
 function getTokenMultiplier(tokenBalance: number, nftCount: number, hasKickItToken: boolean = false): number {
   let multiplier = 1.0;
@@ -141,7 +191,8 @@ export function generateItemDrop(tokenBalance: number = 0, nftCount: number = 0,
       // Select random item from this rarity pool
       const pool = ITEM_POOL[rarity];
       const item = pool[Math.floor(Math.random() * pool.length)];
-      return { ...item };
+      const stats = generateItemStats(item.type, rarity);
+      return { ...item, stats };
     }
   }
   

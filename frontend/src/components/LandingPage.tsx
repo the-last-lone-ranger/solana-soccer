@@ -111,13 +111,13 @@ export function LandingPage() {
               <span>Rare Item Drops</span>
             </motion.div>
           </motion.div>
-          <div className="landing-contract-footer">
+          <motion.div className="landing-contract-footer" variants={itemVariants}>
             <div className="landing-contract-footer-row">
               <span className="landing-contract-label">$SOCCER Contract</span>
               <code className="landing-contract-address">6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump</code>
             </div>
             <div className="landing-contract-footer-row">
-              <button
+              <motion.button
                 className="landing-contract-btn landing-contract-btn-copy"
                 onClick={(e) => {
                   navigator.clipboard.writeText('6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump');
@@ -128,35 +128,59 @@ export function LandingPage() {
                     btn.textContent = originalText;
                   }, 2000);
                 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 Copy Address
-              </button>
-              <a
+              </motion.button>
+              <motion.a
                 href={`https://birdeye.so/token/6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump?chain=solana`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="landing-contract-btn landing-contract-btn-chart"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 View Chart
-              </a>
+              </motion.a>
             </div>
-          </div>
-        </div>
-        <div className="hero-card">
+          </motion.div>
+        </motion.div>
+        <motion.div
+          className="hero-card"
+          variants={itemVariants}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+        >
           <WalletConnect />
-        </div>
+        </motion.div>
       </div>
       
       <div className="landing-particles">
         {Array.from({ length: 20 }).map((_, i) => (
-          <div key={i} className="particle" style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${5 + Math.random() * 5}s`,
-          }} />
+          <motion.div
+            key={i}
+            className="particle"
+            initial={{ opacity: 0, y: 100 }}
+            animate={{
+              opacity: [0, 0.6, 0.6, 0],
+              y: -100,
+              x: Math.random() * 100 - 50,
+            }}
+            transition={{
+              duration: 5 + Math.random() * 5,
+              delay: Math.random() * 5,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
+            style={{
+              left: `${Math.random() * 100}%`,
+            }}
+          />
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

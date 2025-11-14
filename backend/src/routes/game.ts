@@ -370,12 +370,14 @@ router.post('/item-drop', requireAuth, async (req: Request, res: Response) => {
 
     if (item) {
       // Save item to player's inventory
+      const statsJson = item.stats ? JSON.stringify(item.stats) : undefined;
       await dbQueries.addPlayerItem(
         user.address,
         item.id,
         item.name,
         item.type,
-        item.rarity
+        item.rarity,
+        statsJson
       );
 
       const response: ItemDropResponse = {
@@ -429,6 +431,7 @@ router.get('/items', async (req: Request, res: Response) => {
         rarity: item.rarity,
         equipped: item.equipped === 1,
         foundAt: item.found_at,
+        stats: item.stats ? JSON.parse(item.stats) : undefined,
       })),
       equipped: equipped.map(item => ({
         id: item.id,
@@ -436,6 +439,7 @@ router.get('/items', async (req: Request, res: Response) => {
         itemName: item.item_name,
         itemType: item.item_type,
         rarity: item.rarity,
+        stats: item.stats ? JSON.parse(item.stats) : undefined,
       })),
     });
   } catch (error) {

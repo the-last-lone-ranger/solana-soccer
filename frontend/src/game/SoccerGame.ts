@@ -1,5 +1,12 @@
 import type { PlayerPosition } from '@solana-defender/shared';
 
+export interface EquippedItem {
+  itemId: string;
+  itemName: string;
+  itemType: string;
+  rarity: string;
+}
+
 export interface SoccerPlayer {
   walletAddress: string;
   username?: string;
@@ -14,6 +21,7 @@ export interface SoccerPlayer {
   score: number;
   isSpeaking?: boolean; // Voice chat indicator
   hasCrown?: boolean; // Crown indicator for leader
+  equippedItems?: EquippedItem[]; // Equipped items for visual customization
 }
 
 export interface Ball {
@@ -423,7 +431,7 @@ export class SoccerGame {
     }
   }
   
-  updateRemotePlayer(walletAddress: string, position: PlayerPosition, hasCrown?: boolean, avatarUrl?: string): void {
+  updateRemotePlayer(walletAddress: string, position: PlayerPosition, hasCrown?: boolean, avatarUrl?: string, equippedItems?: EquippedItem[]): void {
     let remotePlayer = this.remotePlayers.get(walletAddress);
     
     if (!remotePlayer) {
@@ -442,6 +450,7 @@ export class SoccerGame {
         score: 0,
         isSpeaking: position.isSpeaking ?? false,
         hasCrown: hasCrown ?? false,
+        equippedItems: equippedItems ?? [],
       };
       this.remotePlayers.set(walletAddress, remotePlayer);
       // Load avatar if provided
@@ -467,7 +476,18 @@ export class SoccerGame {
       if (hasCrown !== undefined) {
         remotePlayer.hasCrown = hasCrown;
       }
+      // Only update equipped items if explicitly provided (preserve existing ones)
+      if (equippedItems !== undefined) {
+        remotePlayer.equippedItems = equippedItems;
+      } else if (!remotePlayer.equippedItems) {
+        // Initialize empty array if not set
+        remotePlayer.equippedItems = [];
+      }
     }
+  }
+  
+  setLocalPlayerEquippedItems(equippedItems: EquippedItem[]): void {
+    this.localPlayer.equippedItems = equippedItems;
   }
   
   setLocalPlayerAvatar(avatarUrl?: string): void {
@@ -776,6 +796,11 @@ export class SoccerGame {
     ctx.ellipse(2, this.PLAYER_RADIUS + 2, this.PLAYER_RADIUS * 0.8, this.PLAYER_RADIUS * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
     
+    // Draw equipped items effects BEFORE player body (for background effects)
+    if (player.equippedItems && player.equippedItems.length > 0) {
+      this.drawEquippedItems(ctx, player, true); // Draw background effects first
+    }
+    
     // Draw avatar if available, otherwise draw colored circle
     const avatarImg = player.avatarUrl ? this.avatarImages.get(player.walletAddress) : null;
     const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
@@ -825,6 +850,11 @@ export class SoccerGame {
       ctx.beginPath();
       ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
       ctx.fill();
+    }
+    
+    // Draw equipped items effects AFTER player body (for foreground effects)
+    if (player.equippedItems && player.equippedItems.length > 0) {
+      this.drawEquippedItems(ctx, player, false); // Draw foreground effects
     }
     
     // Crown indicator - Gold outline with pulsing glow effect
@@ -1077,6 +1107,153 @@ export class SoccerGame {
     ctx.font = '600 14px Inter, Arial';
     ctx.textAlign = 'right';
     ctx.fillText(`First to ${this.maxScore} wins`, this.canvasWidth - 20, scoreY + 70);
+  }
+  
+  drawEquippedItems(ctx: CanvasRenderingContext2D, player: SoccerPlayer, isBackground: boolean): void {
+    if (!player.equippedItems || player.equippedItems.length === 0) return;
+    
+    const time = Date.now() / 1000;
+    
+    for (const item of player.equippedItems) {
+      const rarity = item.rarity.toLowerCase();
+      
+      // Get rarity color
+      let rarityColor = '#9ca3af'; // Common - gray
+      if (rarity === 'rare') rarityColor = '#3b82f6'; // Blue
+      else if (rarity === 'epic') rarityColor = '#a855f7'; // Purple
+      else if (rarity === 'legendary') rarityColor = '#f59e0b'; // Gold
+      
+      // Shield items - background effect (glowing aura)
+      if (item.itemType.toLowerCase() === 'shield' && isBackground) {
+        const pulse = Math.sin(time * 2) * 0.3 + 0.7;
+        const shieldRadius = this.PLAYER_RADIUS + 8 + pulse * 3;
+        
+        // Outer glow
+        ctx.shadowColor = rarityColor;
+        ctx.shadowBlur = 15 * pulse;
+        ctx.strokeStyle = rarityColor;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.6 * pulse;
+        ctx.beginPath();
+        ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner ring
+        ctx.globalAlpha = 0.8 * pulse;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, shieldRadius - 2, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+      
+      // Weapon items - foreground effect (weapon visual)
+      if (item.itemType.toLowerCase() === 'weapon' && !isBackground) {
+        const weaponSize = 12;
+        const angle = player.facing === 'right' ? 0 : player.facing === 'left' ? Math.PI : 
+                     player.facing === 'up' ? -Math.PI / 2 : Math.PI / 2;
+        
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.translate(this.PLAYER_RADIUS + 5, 0);
+        
+        // Weapon glow
+        ctx.shadowColor = rarityColor;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = rarityColor;
+        
+        // Draw weapon shape (simple blaster/sword)
+        ctx.beginPath();
+        if (item.itemName.toLowerCase().includes('sword') || item.itemName.toLowerCase().includes('blade')) {
+          // Sword shape
+          ctx.moveTo(0, -weaponSize);
+          ctx.lineTo(weaponSize * 0.5, 0);
+          ctx.lineTo(0, weaponSize);
+          ctx.lineTo(-weaponSize * 0.3, 0);
+          ctx.closePath();
+        } else {
+          // Blaster shape
+          ctx.fillRect(-weaponSize * 0.3, -weaponSize * 0.5, weaponSize * 0.6, weaponSize);
+          ctx.beginPath();
+          ctx.arc(0, 0, weaponSize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+      
+      // Cosmetic items - foreground effect (particles, trails, etc.)
+      if (item.itemType.toLowerCase() === 'cosmetic' && !isBackground) {
+        const pulse = Math.sin(time * 3) * 0.5 + 0.5;
+        
+        // Particle trail effect
+        if (item.itemName.toLowerCase().includes('trail') || item.itemName.toLowerCase().includes('glow')) {
+          ctx.shadowColor = rarityColor;
+          ctx.shadowBlur = 10 * pulse;
+          ctx.strokeStyle = rarityColor;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.7 * pulse;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.PLAYER_RADIUS + 3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        
+        // Aura effect
+        if (item.itemName.toLowerCase().includes('aura') || item.itemName.toLowerCase().includes('radiance')) {
+          const auraRadius = this.PLAYER_RADIUS + 5 + pulse * 2;
+          const gradient = ctx.createRadialGradient(0, 0, this.PLAYER_RADIUS, 0, 0, auraRadius);
+          gradient.addColorStop(0, `rgba(${this.hexToRgb(rarityColor)}, 0.8)`);
+          gradient.addColorStop(0.5, `rgba(${this.hexToRgb(rarityColor)}, 0.4)`);
+          gradient.addColorStop(1, `rgba(${this.hexToRgb(rarityColor)}, 0)`);
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Wings effect
+        if (item.itemName.toLowerCase().includes('wing')) {
+          ctx.shadowColor = rarityColor;
+          ctx.shadowBlur = 8;
+          ctx.strokeStyle = rarityColor;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.8;
+          
+          // Left wing
+          ctx.beginPath();
+          ctx.moveTo(-this.PLAYER_RADIUS - 8, -5);
+          ctx.lineTo(-this.PLAYER_RADIUS - 15, -10);
+          ctx.lineTo(-this.PLAYER_RADIUS - 12, 0);
+          ctx.lineTo(-this.PLAYER_RADIUS - 15, 10);
+          ctx.lineTo(-this.PLAYER_RADIUS - 8, 5);
+          ctx.stroke();
+          
+          // Right wing
+          ctx.beginPath();
+          ctx.moveTo(this.PLAYER_RADIUS + 8, -5);
+          ctx.lineTo(this.PLAYER_RADIUS + 15, -10);
+          ctx.lineTo(this.PLAYER_RADIUS + 12, 0);
+          ctx.lineTo(this.PLAYER_RADIUS + 15, 10);
+          ctx.lineTo(this.PLAYER_RADIUS + 8, 5);
+          ctx.stroke();
+          
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
+        }
+        
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+  
+  hexToRgb(hex: string): string {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 0, 0';
   }
 }
 

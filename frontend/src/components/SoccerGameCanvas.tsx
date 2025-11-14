@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SoccerGame, GameResult } from '../game/SoccerGame.js';
 import { SocketClient } from '../services/socketClient.js';
 import { VoiceChatService } from '../services/voiceChat.js';
+import { ApiClient } from '../services/api.js';
 import type { Lobby, PlayerPosition } from '@solana-defender/shared';
 import { useWallet } from '../contexts/WalletContext.js';
 import './SoccerGameCanvas.css';
@@ -10,9 +11,10 @@ interface SoccerGameCanvasProps {
   lobby: Lobby;
   socketClient: SocketClient;
   onGameEnd: (results: GameResult[]) => void;
+  apiClient: ApiClient;
 }
 
-export function SoccerGameCanvas({ lobby, socketClient, onGameEnd }: SoccerGameCanvasProps) {
+export function SoccerGameCanvas({ lobby, socketClient, onGameEnd, apiClient }: SoccerGameCanvasProps) {
   const { address } = useWallet();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<SoccerGame | null>(null);
@@ -507,6 +509,20 @@ export function SoccerGameCanvas({ lobby, socketClient, onGameEnd }: SoccerGameC
       game.setLocalPlayerAvatar(avatarUrl);
     }
     
+    // Fetch and set local player equipped items
+    apiClient.getPlayerEquippedItems(address).then(data => {
+      if (data.equipped && data.equipped.length > 0) {
+        game.setLocalPlayerEquippedItems(data.equipped.map(item => ({
+          itemId: item.itemId,
+          itemName: item.itemName,
+          itemType: item.itemType,
+          rarity: item.rarity,
+        })));
+      }
+    }).catch(err => {
+      console.error('[SoccerGameCanvas] Failed to fetch equipped items:', err);
+    });
+    
     // Resize game to match canvas display size (in case canvas was resized before game was created)
     if (typeof game.resize === 'function') {
       const displayWidth = canvasRef.current.clientWidth || parseInt(canvasRef.current.style.width) || 800;
@@ -527,17 +543,41 @@ export function SoccerGameCanvas({ lobby, socketClient, onGameEnd }: SoccerGameC
       const initialX = team === 'red' ? 150 * (game.fieldWidth / FIELD_WIDTH) : game.fieldWidth - 150 * (game.fieldWidth / FIELD_WIDTH);
       const initialY = SCOREBOARD_HEIGHT + game.fieldHeight / 2; // Field starts below scoreboard
       
-      game.updateRemotePlayer(player.walletAddress, {
-        walletAddress: player.walletAddress,
-        x: initialX,
-        y: initialY,
-        velocityX: 0,
-        velocityY: 0,
-        isGrounded: false,
-        facing: 'right',
-        username: player.username,
-        isSpeaking: false,
-      }, player.hasCrown, player.avatarUrl);
+      // Fetch equipped items for remote player
+      apiClient.getPlayerEquippedItems(player.walletAddress).then(data => {
+        const equippedItems = data.equipped ? data.equipped.map(item => ({
+          itemId: item.itemId,
+          itemName: item.itemName,
+          itemType: item.itemType,
+          rarity: item.rarity,
+        })) : [];
+        
+        game.updateRemotePlayer(player.walletAddress, {
+          walletAddress: player.walletAddress,
+          x: initialX,
+          y: initialY,
+          velocityX: 0,
+          velocityY: 0,
+          isGrounded: false,
+          facing: 'right',
+          username: player.username,
+          isSpeaking: false,
+        }, player.hasCrown, player.avatarUrl, equippedItems);
+      }).catch(err => {
+        console.error(`[SoccerGameCanvas] Failed to fetch equipped items for ${player.walletAddress}:`, err);
+        // Still create player without equipped items
+        game.updateRemotePlayer(player.walletAddress, {
+          walletAddress: player.walletAddress,
+          x: initialX,
+          y: initialY,
+          velocityX: 0,
+          velocityY: 0,
+          isGrounded: false,
+          facing: 'right',
+          username: player.username,
+          isSpeaking: false,
+        }, player.hasCrown, player.avatarUrl, []);
+      });
     });
 
     // Set up game callbacks
@@ -569,6 +609,8 @@ export function SoccerGameCanvas({ lobby, socketClient, onGameEnd }: SoccerGameC
       
       if (gameRef.current) {
         console.log(`[SoccerGameCanvas] Received position update from ${data.walletAddress}`);
+        // Get existing player to preserve equipped items (equipped items don't change during game)
+        // We'll preserve them from the initial load
         gameRef.current.updateRemotePlayer(data.walletAddress, data.position);
       }
     };

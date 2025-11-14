@@ -298,6 +298,7 @@ body {
   gap: 1.25rem;
   position: sticky;
   top: calc(80px + 1.5rem);
+  align-self: start;
   height: calc(100vh - 120px);
   max-height: calc(100vh - 120px);
   overflow-y: auto;
@@ -305,6 +306,7 @@ body {
   width: 100%;
   min-width: 0;
   align-items: stretch;
+  box-sizing: border-box;
 }
 
 .sidebar::-webkit-scrollbar {

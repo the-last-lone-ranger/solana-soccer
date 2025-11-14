@@ -193,6 +193,7 @@ async function initializeSchema() {
       rarity TEXT NOT NULL,
       equipped INTEGER DEFAULT 0,
       found_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      stats TEXT,
       FOREIGN KEY (wallet_address) REFERENCES players(wallet_address),
       UNIQUE(wallet_address, item_id)
     );
@@ -379,6 +380,7 @@ export interface PlayerItemRow {
   rarity: string;
   equipped: number;
   found_at: string;
+  stats?: string; // JSON string
 }
 
 export interface EquipmentRow {
@@ -695,13 +697,13 @@ export const dbQueries = {
   },
 
   // Item operations
-  addPlayerItem: async (walletAddress: string, itemId: string, itemName: string, itemType: string, rarity: string) => {
+  addPlayerItem: async (walletAddress: string, itemId: string, itemName: string, itemType: string, rarity: string, stats?: string) => {
     await db.execute({
       sql: `
-        INSERT OR IGNORE INTO player_items (wallet_address, item_id, item_name, item_type, rarity)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO player_items (wallet_address, item_id, item_name, item_type, rarity, stats)
+        VALUES (?, ?, ?, ?, ?, ?)
       `,
-      args: [walletAddress, itemId, itemName, itemType, rarity],
+      args: [walletAddress, itemId, itemName, itemType, rarity, stats || null],
     });
   },
 
@@ -720,6 +722,7 @@ export const dbQueries = {
       rarity: row.rarity as string,
       equipped: row.equipped as number,
       found_at: row.found_at as string,
+      stats: row.stats as string | undefined,
     }));
   },
 
@@ -738,6 +741,7 @@ export const dbQueries = {
       rarity: row.rarity as string,
       equipped: row.equipped as number,
       found_at: row.found_at as string,
+      stats: row.stats as string | undefined,
     }));
   },
 

@@ -781,6 +781,7 @@ function App() {
                 lobby={currentLobby}
                 socketClient={lobbySocketClient}
                 onGameEnd={handleSoccerGameEnd}
+                apiClient={apiClient}
               />
             ) : (
               <div>Loading game...</div>

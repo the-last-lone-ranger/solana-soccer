@@ -75,12 +75,22 @@ export enum ItemType {
   Crown = 'crown',
 }
 
+export interface ItemStats {
+  attack?: number;
+  defense?: number;
+  speed?: number;
+  health?: number;
+  critChance?: number;
+  critDamage?: number;
+}
+
 export interface GameItem {
   id: string;
   name: string;
   type: ItemType;
   rarity: ItemRarity;
   description: string;
+  stats?: ItemStats;
 }
 
 export interface PlayerItem {
@@ -92,6 +102,7 @@ export interface PlayerItem {
   rarity: string;
   equipped: boolean;
   foundAt: string;
+  stats?: ItemStats;
 }
 
 export interface ItemDropRequest {

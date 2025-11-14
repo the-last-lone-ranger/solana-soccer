@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { ApiClient } from '../services/api.js';
+import { LoadingSpinner } from './LoadingSpinner.js';
 import './RecentRounds.css';
 
 interface Round {
@@ -59,7 +61,7 @@ export function RecentRounds({ apiClient }: RecentRoundsProps) {
   if (loading && rounds.length === 0) {
     return (
       <div className="recent-rounds">
-        <div className="loading">Loading recent rounds...</div>
+        <LoadingSpinner size="sm" text="Loading recent rounds..." />
       </div>
     );
   }
@@ -74,9 +76,35 @@ export function RecentRounds({ apiClient }: RecentRoundsProps) {
           <p>No rounds played yet. Be the first!</p>
         </div>
       ) : (
-        <div className="rounds-list">
-          {rounds.map((round) => (
-            <div key={round.lobbyId} className="round-card">
+        <motion.div
+          className="rounds-list"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            visible: {
+              transition: {
+                staggerChildren: 0.1,
+              },
+            },
+          }}
+        >
+          {rounds.map((round, index) => (
+            <motion.div
+              key={round.lobbyId}
+              className="round-card"
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  transition: {
+                    duration: 0.3,
+                    ease: [0.4, 0, 0.2, 1],
+                  },
+                },
+              }}
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
               <div className="round-header">
                 <span className="round-bet">
                   {round.betAmountSol === 0 ? 'Free' : `${round.betAmountSol} SOL`}
@@ -118,9 +146,9 @@ export function RecentRounds({ apiClient }: RecentRoundsProps) {
                   <span>{round.winnersCount} winners</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );

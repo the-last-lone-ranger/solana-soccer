@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext.js';
 import { ApiClient } from '../services/api.js';
 import { SocketClient } from '../services/socketClient.js';
 import { LobbyWaitingRoom } from './LobbyWaitingRoom.js';
 import { PlayerTooltip } from './PlayerTooltip.js';
+import { LoadingSpinner, SkeletonLoader } from './LoadingSpinner.js';
 import type { Lobby, LobbyStatus } from '@solana-defender/shared';
 import { BetAmount } from '@solana-defender/shared';
 import './LobbyBrowser.css';
@@ -367,39 +369,45 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
         <div className="sidebar-section">
           <div className="section-label">Create lobby</div>
           <div className="create-group">
-            <button
+            <motion.button
               onClick={() => createLobby(BetAmount.Free)}
               disabled={loading || !address}
               className="create-action-btn create-free"
+              whileHover={!loading && address ? { scale: 1.02 } : {}}
+              whileTap={!loading && address ? { scale: 0.98 } : {}}
             >
               <span className="action-icon">✨</span>
               <span className="action-content">
                 <span className="action-title">Free Play</span>
                 <span className="action-subtitle">No stake required</span>
               </span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => createLobby(BetAmount.Low)}
               disabled={loading || !address || walletBalance < BetAmount.Low}
               className="create-action-btn create-low"
+              whileHover={!loading && address && walletBalance >= BetAmount.Low ? { scale: 1.02 } : {}}
+              whileTap={!loading && address && walletBalance >= BetAmount.Low ? { scale: 0.98 } : {}}
             >
               <span className="action-icon">💎</span>
               <span className="action-content">
                 <span className="action-title">{formatBetAmount(BetAmount.Low)}</span>
                 <span className="action-subtitle">Low stakes</span>
               </span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => createLobby(BetAmount.Medium)}
               disabled={loading || !address || walletBalance < BetAmount.Medium}
               className="create-action-btn create-medium"
+              whileHover={!loading && address && walletBalance >= BetAmount.Medium ? { scale: 1.02 } : {}}
+              whileTap={!loading && address && walletBalance >= BetAmount.Medium ? { scale: 0.98 } : {}}
             >
               <span className="action-icon">🔥</span>
               <span className="action-content">
                 <span className="action-title">{formatBetAmount(BetAmount.Medium)}</span>
                 <span className="action-subtitle">Medium stakes</span>
               </span>
-            </button>
+            </motion.button>
           </div>
         </div>
 
@@ -431,14 +439,34 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
           </div>
         </div>
 
-        {lobbies.length === 0 ? (
+        {loading && lobbies.length === 0 ? (
           <div className="empty-state">
+            <LoadingSpinner size="md" text="Loading lobbies..." />
+          </div>
+        ) : lobbies.length === 0 ? (
+          <motion.div
+            className="empty-state"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="empty-icon">🎮</div>
             <h3 className="empty-title">No lobbies available</h3>
             <p className="empty-description">Be the first to create a lobby and start playing!</p>
-          </div>
+          </motion.div>
         ) : (
-          <div className="lobbies-grid">
+          <motion.div
+            className="lobbies-grid"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.05,
+                },
+              },
+            }}
+          >
             {lobbies.map((lobby) => {
               const countdown = countdowns.get(lobby.id) ?? lobby.countdownSeconds;
               const isJoined = joinedLobbyId === lobby.id;
@@ -447,9 +475,23 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
               const isFull = playerCount >= (lobby.maxPlayers ?? 50);
 
               return (
-                <div
+                <motion.div
                   key={lobby.id}
                   className={`lobby-card-modern ${isJoined ? 'joined' : ''} ${lobby.status}`}
+                  variants={{
+                    hidden: { opacity: 0, y: 20, scale: 0.95 },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      scale: 1,
+                      transition: {
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1],
+                      },
+                    },
+                  }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  layout
                 >
                   {/* Card Header */}
                   <div className="card-header">
@@ -461,7 +503,8 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                         {lobby.status === 'waiting' && '⏳ Waiting'}
                         {lobby.status === 'starting' && '🚀 Starting'}
                         {lobby.status === 'active' && '🎮 Active'}
-                        {lobby.status === 'finished' && '✅ Finished'}
+                        {lobby.status === 'completed' && '✅ Completed'}
+                        {lobby.status === 'cancelled' && '❌ Cancelled'}
                       </div>
                     </div>
                     {countdown !== undefined && countdown !== null && (
@@ -521,17 +564,28 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                   {/* Card Footer */}
                   <div className="card-footer">
                     {isJoined ? (
-                      <button
+                      <motion.button
                         onClick={() => leaveLobby(lobby.id)}
                         disabled={loading || lobby.status === 'active'}
                         className="action-button leave-button"
+                        whileHover={!loading && lobby.status !== 'active' ? { scale: 1.05 } : {}}
+                        whileTap={!loading && lobby.status !== 'active' ? { scale: 0.95 } : {}}
                       >
-                        <span className="button-icon">←</span>
-                        <span className="button-text">Leave</span>
-                      </button>
+                        {loading && joinedLobbyId === lobby.id ? (
+                          <>
+                            <LoadingSpinner size="sm" />
+                            <span className="button-text">Leaving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="button-icon">←</span>
+                            <span className="button-text">Leave</span>
+                          </>
+                        )}
+                      </motion.button>
                     ) : (
                       <div className="action-group">
-                        <button
+                        <motion.button
                           onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
                           disabled={
                             loading ||
@@ -541,25 +595,46 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                             (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
                           }
                           className={`action-button join-button ${isFull ? 'disabled' : ''}`}
+                          whileHover={
+                            !loading && canJoin && !isFull && address && (lobby.betAmountSol === 0 || walletBalance >= lobby.betAmountSol)
+                              ? { scale: 1.05 }
+                              : {}
+                          }
+                          whileTap={
+                            !loading && canJoin && !isFull && address && (lobby.betAmountSol === 0 || walletBalance >= lobby.betAmountSol)
+                              ? { scale: 0.95 }
+                              : {}
+                          }
                         >
-                          <span className="button-icon">→</span>
-                          <span className="button-text">{isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}</span>
-                        </button>
-                        <button
+                          {loading && joinedLobbyId === lobby.id ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="button-text">Joining...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="button-icon">→</span>
+                              <span className="button-text">{isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}</span>
+                            </>
+                          )}
+                        </motion.button>
+                        <motion.button
                           className="action-button spectate-button"
                           onClick={() => spectateLobby(lobby.id)}
                           title="Watch this lobby without joining"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                         >
                           <span className="button-icon">👁️</span>
                           <span className="button-text">Watch</span>
-                        </button>
+                        </motion.button>
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </main>
     </div>
