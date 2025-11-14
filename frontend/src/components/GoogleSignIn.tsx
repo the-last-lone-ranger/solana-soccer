@@ -75,8 +75,8 @@ export function GoogleSignIn() {
         // Clean up URL first
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        // Redirect to profile page after successful login
-        window.location.href = '/profile';
+        // Redirect to lobby browser after successful login so they can start playing
+        window.location.href = '/lobbies';
       } catch (err) {
         console.error('Failed to parse token:', err);
         setError('Failed to process authentication token');

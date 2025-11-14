@@ -365,6 +365,11 @@ function App() {
   const handleFirstTimeSetupComplete = () => {
     setShowFirstTimeSetup(false);
     setProfileLoaded(true);
+    // Immediately redirect to lobby browser after first-time setup so they can start playing
+    if (address) {
+      hasRedirectedToProfileRef.current = true;
+      navigate('/lobbies');
+    }
   };
 
   // Check Google auth users and prompt for username setup
@@ -404,7 +409,7 @@ function App() {
     }
   }, [profileLoaded, authenticating, showFirstTimeSetup, apiClient]);
 
-  // Redirect to profile after wallet connects (for wallet logins, not Google)
+  // Redirect to lobby browser after wallet connects (for wallet logins, not Google)
   useEffect(() => {
     // Only redirect if:
     // 1. Wallet is connected
@@ -412,18 +417,19 @@ function App() {
     // 3. Not showing first-time setup
     // 4. Not a Google login (Google login handles its own redirect)
     // 5. Haven't already redirected for this connection
-    // 6. Not already on profile page
+    // 6. Not already on lobbies page
     // 7. Not in a game or lobby route
     if (connected && address && profileLoaded && !showFirstTimeSetup && !hasRedirectedToProfileRef.current) {
       const googleToken = localStorage.getItem('google_auth_token');
       const isGameRoute = location.pathname.startsWith('/game/');
       const isLobbyRoute = location.pathname.startsWith('/lobby/') || location.pathname.startsWith('/spectate/');
-      const isProfileRoute = location.pathname === '/profile';
+      const isLobbiesRoute = location.pathname === '/lobbies';
       
       // Only redirect if this is a wallet login (not Google) and we're on a safe page
-      if (!googleToken && !isGameRoute && !isLobbyRoute && !isProfileRoute) {
+      // Allow redirecting from home page (/) or other pages, but not from game/lobby routes
+      if (!googleToken && !isGameRoute && !isLobbyRoute && !isLobbiesRoute) {
         hasRedirectedToProfileRef.current = true;
-        navigate('/profile');
+        navigate('/lobbies');
       }
     }
   }, [connected, address, profileLoaded, showFirstTimeSetup, location.pathname, navigate]);

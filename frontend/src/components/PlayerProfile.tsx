@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { ApiClient } from '../services/api.js';
 import { useTheme } from '../contexts/ThemeContext.js';
 import { useWallet } from '../hooks/useWallet.js';
+import { LoadingSpinner } from './LoadingSpinner.js';
 import './PlayerProfile.css';
 
 interface PlayerProfileProps {
@@ -555,7 +556,11 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
   };
 
   if (loading) {
-    return <div className="player-profile loading">Loading profile...</div>;
+    return (
+      <div className="player-profile-loading">
+        <LoadingSpinner size="lg" text="Loading profile..." />
+      </div>
+    );
   }
 
   if (error && !profile) {

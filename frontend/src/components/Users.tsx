@@ -140,14 +140,14 @@ export function Users({ apiClient }: UsersProps) {
                   <td className="player-cell">
                     <div className="player-info">
                       <div className="player-avatar-wrapper">
-                        <div className="player-avatar">
-                          {user.avatarUrl && EMOJI_AVATARS.includes(user.avatarUrl) ? (
-                            <span className="avatar-emoji-small">{user.avatarUrl}</span>
-                          ) : user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt={displayName} className="avatar-image-small" />
-                          ) : (
-                            <div className="avatar-initials-small">{avatar}</div>
-                          )}
+                      <div className="player-avatar">
+                        {user.avatarUrl && EMOJI_AVATARS.includes(user.avatarUrl) ? (
+                          <span className="avatar-emoji-small">{user.avatarUrl}</span>
+                        ) : user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={displayName} className="avatar-image-small" />
+                        ) : (
+                          <div className="avatar-initials-small">{avatar}</div>
+                        )}
                         </div>
                         <div className="player-level-badge">
                           <span className="level-text">Lv {user.level}</span>

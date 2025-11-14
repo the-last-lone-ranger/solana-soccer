@@ -1,5 +1,14 @@
 /* Player Profile - Full Width Notion-Style Layout */
 
+.player-profile-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 3rem;
+  width: 100%;
+}
+
 .player-profile {
   background: transparent;
   border: none;
