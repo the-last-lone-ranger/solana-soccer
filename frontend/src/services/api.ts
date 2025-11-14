@@ -91,7 +91,9 @@ export class ApiClient {
     // Check if there's already a pending request for this endpoint
     if (this.pendingAuthRequests.has(requestKey)) {
       console.log(`[ApiClient] Reusing pending request for ${requestKey}`);
-      return await this.pendingAuthRequests.get(requestKey)!;
+      const cachedResponse = await this.pendingAuthRequests.get(requestKey)!;
+      // Clone the response so each caller gets their own copy (prevents "body stream already read" error)
+      return cachedResponse.clone();
     }
     
     // Check for Google auth first - if present, skip wallet check
@@ -773,7 +775,9 @@ export class ApiClient {
     const response = await this.authenticatedFetch('/api/wallet/balance');
     
     if (!response.ok) {
-      throw new Error('Failed to get wallet balance');
+      const clonedResponse = response.clone();
+      const error = await clonedResponse.json().catch(() => ({ error: 'Failed to get wallet balance' }));
+      throw new Error(error.error || 'Failed to get wallet balance');
     }
 
     return response.json();
