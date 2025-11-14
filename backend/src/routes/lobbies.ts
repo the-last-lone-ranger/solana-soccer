@@ -6,6 +6,7 @@ import { lobbyManager } from '../services/lobbyManager.js';
 import { permanentLobbyManager } from '../services/permanentLobbyManager.js';
 import { getOrCreateInGameWallet, getInGameWalletKeypair, getInGameWalletAddress } from '../services/wallet.js';
 import { getSolBalance } from '../services/solana.js';
+import { calculateExpGain, addExp } from '../services/expSystem.js';
 import { BetAmount, LobbyStatus, CreateLobbyRequest, CreateLobbyResponse, JoinLobbyRequest, JoinLobbyResponse } from '@solana-defender/shared';
 import { Connection, Transaction, SystemProgram, sendAndConfirmTransaction } from '@solana/web3.js';
 import { randomUUID } from 'crypto';
@@ -271,17 +272,40 @@ router.post('/lobbies/:lobbyId/results', requireAuth, async (req: Request, res: 
 
     // Submit results for all players
     for (const result of results) {
+      const won = result.won || (winningTeam && result.team === winningTeam);
+      
       await dbQueries.submitLobbyResult(
         lobbyId,
         result.walletAddress,
         result.score,
         0, // position not used for team games
         result.team,
-        result.won || (winningTeam && result.team === winningTeam)
+        won
       );
       
       // Update player stats - increment games played
       await dbQueries.updatePlayerStats(result.walletAddress, result.score);
+      
+      // Award EXP for wins
+      if (won) {
+        try {
+          const { level, exp } = await dbQueries.getPlayerLevel(result.walletAddress);
+          const expGain = calculateExpGain(lobby.betAmountSol, level, result.score, true);
+          const expResult = addExp(level, exp, expGain);
+          
+          await dbQueries.addPlayerExp(
+            result.walletAddress,
+            expGain,
+            expResult.newLevel,
+            expResult.newExp
+          );
+          
+          console.log(`[EXP] Player ${result.walletAddress} gained ${expGain} EXP (${expResult.leveledUp ? 'LEVEL UP!' : ''})`);
+        } catch (error) {
+          console.error(`[EXP] Error awarding EXP to ${result.walletAddress}:`, error);
+          // Don't fail the request if EXP award fails
+        }
+      }
     }
 
     // Process payouts if it's a paid match

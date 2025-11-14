@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createClient } from '@libsql/client';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { calculateExpGain } from '../services/expSystem.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,6 +153,23 @@ async function initializeSchema() {
   try {
     await db.execute(`
       ALTER TABLE players ADD COLUMN push_to_talk_key TEXT DEFAULT 'v';
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Add level and exp columns
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN level INTEGER DEFAULT 1;
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN exp INTEGER DEFAULT 0;
     `);
   } catch (e) {
     // Column already exists, ignore
@@ -348,6 +366,8 @@ export interface PlayerRow {
   voice_enabled: number | null;
   push_to_talk_key: string | null;
   last_username_change: string | null;
+  level: number | null;
+  exp: number | null;
 }
 
 export interface InGameWalletRow {
@@ -426,6 +446,8 @@ export const dbQueries = {
         voice_enabled: (row.voice_enabled as number | null) ?? null,
         push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
         last_username_change: (row.last_username_change as string | null) ?? null,
+        level: (row.level as number | null) ?? 1,
+        exp: (row.exp as number | null) ?? 0,
       };
     }
 
@@ -451,6 +473,8 @@ export const dbQueries = {
       voice_enabled: (row.voice_enabled as number | null) ?? null,
       push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
       last_username_change: (row.last_username_change as string | null) ?? null,
+      level: (row.level as number | null) ?? 1,
+      exp: (row.exp as number | null) ?? 0,
     };
   },
 
@@ -476,6 +500,8 @@ export const dbQueries = {
       voice_enabled: (row.voice_enabled as number | null) ?? null,
       push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
       last_username_change: (row.last_username_change as string | null) ?? null,
+      level: (row.level as number | null) ?? 1,
+      exp: (row.exp as number | null) ?? 0,
     };
   },
 
@@ -1283,10 +1309,11 @@ export const dbQueries = {
       args: [limit],
     });
 
-    // For each round, get top 3 winner avatars
+    // For each round, get top 3 winner avatars and calculate EXP
     const roundsWithWinners = await Promise.all(
       result.rows.map(async (row) => {
         const lobbyId = row.lobby_id as string;
+        const betAmountSol = row.bet_amount_sol as number;
         
         // Get winning team (team with most winners)
         const teamStats = await db.execute({
@@ -1305,13 +1332,19 @@ export const dbQueries = {
 
         const winningTeam = teamStats.rows[0]?.team as string | null;
 
-        // Get top 3 winners from winning team (by score)
+        // Get top 3 winners from winning team (by score) and calculate EXP
         let winnerAvatars: string[] = [];
+        let expGained: number | null = null;
+        
         if (winningTeam) {
           const winners = await db.execute({
             sql: `
               SELECT 
-                p.avatar_url
+                p.avatar_url,
+                lr.wallet_address,
+                lr.final_score,
+                p.level,
+                p.exp
               FROM lobby_results lr
               JOIN players p ON lr.wallet_address = p.wallet_address
               WHERE lr.lobby_id = ? AND lr.team = ? AND lr.won = 1
@@ -1324,17 +1357,29 @@ export const dbQueries = {
           winnerAvatars = winners.rows
             .map((w) => w.avatar_url as string | null)
             .filter((url): url is string => url !== null);
+
+          // Calculate EXP for the first winner (representative EXP for the round)
+          // Use average EXP if multiple winners, or calculate for top winner
+          if (winners.rows.length > 0) {
+            const topWinner = winners.rows[0];
+            const level = (topWinner.level as number) || 1;
+            const score = (topWinner.final_score as number) || 0;
+            
+            // Calculate EXP using the same formula as when awarding
+            expGained = calculateExpGain(betAmountSol, level, score, true);
+          }
         }
 
         return {
           lobbyId: lobbyId,
-          betAmountSol: row.bet_amount_sol as number,
+          betAmountSol: betAmountSol,
           completedAt: row.completed_at as string,
           teams: (row.teams as string)?.split(',') || [],
           winnersCount: row.winners_count as number,
           playerCount: row.player_count as number,
           winnerAvatars: winnerAvatars.slice(0, 3), // Top 3 avatars
           winningTeam: winningTeam,
+          expGained: expGained,
         };
       })
     );
@@ -1350,6 +1395,7 @@ export const dbQueries = {
           p.username,
           p.avatar_url,
           p.created_at,
+          COALESCE(p.level, 1) as level,
           COALESCE(ps.games_played, 0) as games_played,
           COALESCE(ps.total_score, 0) as total_score,
           COALESCE(ps.high_score, 0) as high_score,
@@ -1359,7 +1405,7 @@ export const dbQueries = {
         FROM players p
         LEFT JOIN player_stats ps ON p.wallet_address = ps.wallet_address
         LEFT JOIN lobby_results lr ON p.wallet_address = lr.wallet_address
-        GROUP BY p.wallet_address, p.username, p.avatar_url, p.created_at, ps.games_played, ps.total_score, ps.high_score
+        GROUP BY p.wallet_address, p.username, p.avatar_url, p.created_at, p.level, ps.games_played, ps.total_score, ps.high_score
         ORDER BY total_sol_won DESC, rounds_won DESC, rounds_played DESC
       `,
       args: [],
@@ -1370,6 +1416,7 @@ export const dbQueries = {
       username: row.username as string | null,
       avatarUrl: row.avatar_url as string | null,
       createdAt: row.created_at as string,
+      level: (row.level as number) || 1,
       gamesPlayed: row.games_played as number,
       totalScore: row.total_score as number,
       highScore: row.high_score as number,
@@ -1444,6 +1491,40 @@ export const dbQueries = {
 
     const total = result.rows[0]?.total_sol_bet as number || 0;
     return total;
+  },
+
+  // EXP and Level operations
+  addPlayerExp: async (
+    walletAddress: string,
+    expGain: number,
+    newLevel: number,
+    newExp: number
+  ): Promise<void> => {
+    await db.execute({
+      sql: `
+        UPDATE players 
+        SET level = ?, exp = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE wallet_address = ?
+      `,
+      args: [newLevel, newExp, walletAddress],
+    });
+  },
+
+  getPlayerLevel: async (walletAddress: string): Promise<{ level: number; exp: number }> => {
+    const result = await db.execute({
+      sql: 'SELECT level, exp FROM players WHERE wallet_address = ?',
+      args: [walletAddress],
+    });
+
+    if (result.rows.length === 0) {
+      return { level: 1, exp: 0 };
+    }
+
+    const row = result.rows[0];
+    return {
+      level: (row.level as number | null) ?? 1,
+      exp: (row.exp as number | null) ?? 0,
+    };
   },
 };
 

@@ -32,6 +32,30 @@ import type { GameResult } from './game/SoccerGame.js';
 import { SocketClient } from './services/socketClient.js';
 import './App.css';
 
+// Component wrapper for viewing other users' profiles
+function UserProfilePage({ apiClient }: { apiClient: ApiClient }) {
+  const { walletAddress } = useParams<{ walletAddress: string }>();
+  const navigate = useNavigate();
+  
+  if (!walletAddress) {
+    return <div>Invalid wallet address</div>;
+  }
+  
+  return (
+    <div className="profile-page">
+      <div style={{ padding: '1.5rem 2rem 0' }}>
+        <button
+          className="back-btn"
+          onClick={() => navigate(-1)}
+        >
+          ← Back
+        </button>
+      </div>
+      <PlayerProfile apiClient={apiClient} walletAddress={walletAddress} />
+    </div>
+  );
+}
+
 function App() {
   const { theme, toggleTheme } = useTheme();
   const { connected, address, authenticated, authenticate, authenticating, client } = useWallet();
@@ -726,6 +750,7 @@ function App() {
           } />
           <Route path="/leaderboard" element={
             <motion.div
+              className="leaderboard-page"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -744,6 +769,7 @@ function App() {
           } />
           <Route path="/users" element={
             <motion.div
+              className="users-page"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -759,6 +785,9 @@ function App() {
                 <Users apiClient={apiClient} />
               </div>
             </motion.div>
+          } />
+          <Route path="/profile/:walletAddress" element={
+            <UserProfilePage apiClient={apiClient} />
           } />
           <Route path="/profile" element={
             address && profileLoaded ? (

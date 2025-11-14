@@ -507,6 +507,12 @@ export class ApiClient {
       rarity: string;
     }>;
     hasCrown: boolean;
+    level?: number;
+    exp?: number;
+    expToNextLevel?: number;
+    expInCurrentLevel?: number;
+    expNeededForCurrentLevel?: number;
+    progressPercent?: number;
   }> {
     const response = await fetch(`${API_BASE_URL}/api/players/${walletAddress}/equipped-items`);
     
@@ -538,6 +544,86 @@ export class ApiClient {
     }
 
     return clonedResponse.json();
+  }
+
+  async getPlayerProfile(walletAddress: string): Promise<{
+    walletAddress: string;
+    username: string | null;
+    avatarUrl: string | null;
+    stats?: {
+      gamesPlayed: number;
+      totalScore: number;
+      highScore: number;
+      roundsPlayed: number;
+      roundsWon: number;
+      totalSolWon: number;
+    };
+    equipped: Array<{
+      id: number;
+      itemId: string;
+      itemName: string;
+      itemType: string;
+      rarity: string;
+      stats?: any;
+    }>;
+    hasCrown: boolean;
+    isLeader: boolean;
+    level?: number;
+    exp?: number;
+    expToNextLevel?: number;
+    expInCurrentLevel?: number;
+    expNeededForCurrentLevel?: number;
+    progressPercent?: number;
+  }> {
+    // Get equipped items and basic info
+    const equippedResponse = await fetch(`${API_BASE_URL}/api/players/${walletAddress}/equipped-items`);
+    if (!equippedResponse.ok) {
+      throw new Error('Failed to fetch player profile');
+    }
+    const equippedData = await equippedResponse.json();
+
+    // Get player stats from users endpoint
+    const usersResponse = await fetch(`${API_BASE_URL}/api/users`);
+    if (!usersResponse.ok) {
+      throw new Error('Failed to fetch player stats');
+    }
+    const usersData = await usersResponse.json();
+    const user = usersData.users.find((u: any) => u.walletAddress.toLowerCase() === walletAddress.toLowerCase());
+
+    // Get items to extract stats for equipped items
+    const itemsResponse = await fetch(`${API_BASE_URL}/api/items?walletAddress=${encodeURIComponent(walletAddress)}`);
+    let equippedWithStats = equippedData.equipped;
+    if (itemsResponse.ok) {
+      const itemsData = await itemsResponse.json();
+      // Merge stats into equipped items
+      equippedWithStats = equippedData.equipped.map((equipped: any) => {
+        const item = itemsData.equipped.find((i: any) => i.itemId === equipped.itemId);
+        return { ...equipped, stats: item?.stats };
+      });
+    }
+
+    return {
+      walletAddress: equippedData.walletAddress,
+      username: equippedData.username,
+      avatarUrl: equippedData.avatarUrl,
+      stats: user ? {
+        gamesPlayed: user.gamesPlayed || 0,
+        totalScore: user.totalScore || 0,
+        highScore: user.highScore || 0,
+        roundsPlayed: user.roundsPlayed || 0,
+        roundsWon: user.roundsWon || 0,
+        totalSolWon: user.totalSolWon || 0,
+      } : undefined,
+      equipped: equippedWithStats,
+      hasCrown: equippedData.hasCrown || false,
+      isLeader: false, // Would need separate endpoint to check this
+      level: equippedData.level,
+      exp: equippedData.exp,
+      expToNextLevel: equippedData.expToNextLevel,
+      expInCurrentLevel: equippedData.expInCurrentLevel,
+      expNeededForCurrentLevel: equippedData.expNeededForCurrentLevel,
+      progressPercent: equippedData.progressPercent,
+    };
   }
 
   async checkToken(): Promise<TokenCheckResponse> {

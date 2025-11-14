@@ -7,6 +7,7 @@ import { SocketClient } from '../services/socketClient.js';
 import { LobbyWaitingRoom } from './LobbyWaitingRoom.js';
 import { PlayerTooltip } from './PlayerTooltip.js';
 import { LoadingSpinner, SkeletonLoader } from './LoadingSpinner.js';
+import { RecentRounds } from './RecentRounds.js';
 import type { Lobby, LobbyStatus } from '@solana-defender/shared';
 import { BetAmount } from '@solana-defender/shared';
 import './LobbyBrowser.css';
@@ -424,6 +425,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
             </div>
           </div>
         )}
+
       </aside>
 
       {/* Main Content Area - Notion/Monday.com style */}
@@ -455,18 +457,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
             <p className="empty-description">Be the first to create a lobby and start playing!</p>
           </motion.div>
         ) : (
-          <motion.div
-            className="lobbies-grid"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              visible: {
-                transition: {
-                  staggerChildren: 0.05,
-                },
-              },
-            }}
-          >
+          <div className="lobbies-grid">
             {lobbies.map((lobby) => {
               const countdown = countdowns.get(lobby.id) ?? lobby.countdownSeconds;
               const isJoined = joinedLobbyId === lobby.id;
@@ -475,23 +466,9 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
               const isFull = playerCount >= (lobby.maxPlayers ?? 50);
 
               return (
-                <motion.div
+                <div
                   key={lobby.id}
                   className={`lobby-card-modern ${isJoined ? 'joined' : ''} ${lobby.status}`}
-                  variants={{
-                    hidden: { opacity: 0, y: 20, scale: 0.95 },
-                    visible: {
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                      transition: {
-                        duration: 0.3,
-                        ease: [0.4, 0, 0.2, 1],
-                      },
-                    },
-                  }}
-                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  layout
                 >
                   {/* Card Header */}
                   <div className="card-header">
@@ -564,12 +541,10 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                   {/* Card Footer */}
                   <div className="card-footer">
                     {isJoined ? (
-                      <motion.button
+                      <button
                         onClick={() => leaveLobby(lobby.id)}
                         disabled={loading || lobby.status === 'active'}
                         className="action-button leave-button"
-                        whileHover={!loading && lobby.status !== 'active' ? { scale: 1.05 } : {}}
-                        whileTap={!loading && lobby.status !== 'active' ? { scale: 0.95 } : {}}
                       >
                         {loading && joinedLobbyId === lobby.id ? (
                           <>
@@ -582,10 +557,10 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                             <span className="button-text">Leave</span>
                           </>
                         )}
-                      </motion.button>
+                      </button>
                     ) : (
                       <div className="action-group">
-                        <motion.button
+                        <button
                           onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
                           disabled={
                             loading ||
@@ -595,16 +570,6 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                             (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
                           }
                           className={`action-button join-button ${isFull ? 'disabled' : ''}`}
-                          whileHover={
-                            !loading && canJoin && !isFull && address && (lobby.betAmountSol === 0 || walletBalance >= lobby.betAmountSol)
-                              ? { scale: 1.05 }
-                              : {}
-                          }
-                          whileTap={
-                            !loading && canJoin && !isFull && address && (lobby.betAmountSol === 0 || walletBalance >= lobby.betAmountSol)
-                              ? { scale: 0.95 }
-                              : {}
-                          }
                         >
                           {loading && joinedLobbyId === lobby.id ? (
                             <>
@@ -617,25 +582,28 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                               <span className="button-text">{isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}</span>
                             </>
                           )}
-                        </motion.button>
-                        <motion.button
+                        </button>
+                        <button
                           className="action-button spectate-button"
                           onClick={() => spectateLobby(lobby.id)}
                           title="Watch this lobby without joining"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
                         >
                           <span className="button-icon">👁️</span>
                           <span className="button-text">Watch</span>
-                        </motion.button>
+                        </button>
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </div>
               );
             })}
-          </motion.div>
+          </div>
         )}
+
+        {/* Recent Rounds Marquee */}
+        <div className="recent-rounds-marquee-container">
+          <RecentRounds apiClient={apiClient} />
+        </div>
       </main>
     </div>
   );

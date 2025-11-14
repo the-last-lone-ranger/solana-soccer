@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { ApiClient } from '../services/api.js';
 import { useTheme } from '../contexts/ThemeContext.js';
+import { useWallet } from '../hooks/useWallet.js';
 import './PlayerProfile.css';
 
 interface PlayerProfileProps {
@@ -39,6 +40,8 @@ interface EquippedItem {
 
 export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) {
   const { theme } = useTheme();
+  const { address: currentUserAddress } = useWallet();
+  const isOwnProfile = currentUserAddress?.toLowerCase() === walletAddress.toLowerCase();
   const [profile, setProfile] = useState<any>(null);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [equippedItems, setEquippedItems] = useState<EquippedItem[]>([]);
@@ -51,7 +54,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
   const [equipping, setEquipping] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Voice chat settings - load from profile
+  // Voice chat settings - load from profile (only for own profile)
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [pushToTalkKey, setPushToTalkKey] = useState('v');
   const [editingPushToTalkKey, setEditingPushToTalkKey] = useState(false);
@@ -66,25 +69,64 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [walletAddress]);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getProfile();
-      setProfile(data);
-      setAvatarUrl(data.avatarUrl || '');
       
-      // Load voice settings from profile
-      if (data.voiceSettings) {
-        setVoiceEnabled(data.voiceSettings.enabled || false);
-        setPushToTalkKey(data.voiceSettings.pushToTalkKey || 'v');
-        // Also sync to localStorage for backward compatibility
-        localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify({
-          enabled: data.voiceSettings.enabled || false,
-          pushToTalkKey: data.voiceSettings.pushToTalkKey || 'v',
-        }));
+      if (isOwnProfile) {
+        // Load own profile with full data
+        const data = await apiClient.getProfile();
+        setProfile(data);
+        setAvatarUrl(data.avatarUrl || '');
+        
+        // Load voice settings from profile
+        if (data.voiceSettings) {
+          setVoiceEnabled(data.voiceSettings.enabled || false);
+          setPushToTalkKey(data.voiceSettings.pushToTalkKey || 'v');
+          // Also sync to localStorage for backward compatibility
+          localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify({
+            enabled: data.voiceSettings.enabled || false,
+            pushToTalkKey: data.voiceSettings.pushToTalkKey || 'v',
+          }));
+        }
+      } else {
+        // Load other user's profile with public data
+        try {
+          const playerProfile = await apiClient.getPlayerProfile(walletAddress);
+          setProfile({
+            walletAddress: playerProfile.walletAddress,
+            username: playerProfile.username,
+            avatarUrl: playerProfile.avatarUrl,
+            stats: playerProfile.stats,
+            hasCrown: playerProfile.hasCrown,
+            isLeader: playerProfile.isLeader,
+            level: playerProfile.level,
+            exp: playerProfile.exp,
+            expToNextLevel: playerProfile.expToNextLevel,
+            expInCurrentLevel: playerProfile.expInCurrentLevel,
+            expNeededForCurrentLevel: playerProfile.expNeededForCurrentLevel,
+            progressPercent: playerProfile.progressPercent,
+          });
+        } catch (err: any) {
+          // Fallback: try to get basic info from equipped items endpoint
+          const equippedData = await apiClient.getPlayerEquippedItems(walletAddress);
+          setProfile({
+            walletAddress: equippedData.walletAddress,
+            username: equippedData.username,
+            avatarUrl: equippedData.avatarUrl,
+            hasCrown: equippedData.hasCrown,
+            isLeader: false,
+            level: equippedData.level,
+            exp: equippedData.exp,
+            expToNextLevel: equippedData.expToNextLevel,
+            expInCurrentLevel: equippedData.expInCurrentLevel,
+            expNeededForCurrentLevel: equippedData.expNeededForCurrentLevel,
+            progressPercent: equippedData.progressPercent,
+          });
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load profile');
@@ -218,13 +260,189 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
     );
   };
 
+  // Slot Tooltip Component
+  const SlotTooltip = ({ slot, item, rarityColor, children }: {
+    slot: string;
+    item?: EquippedItem;
+    rarityColor: (rarity: string) => string;
+    children: React.ReactNode;
+  }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+    const timeoutRef = useRef<number | null>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLDivElement>(null);
+
+    const slotLabels: Record<string, string> = {
+      head: 'Head',
+      shoulders: 'Shoulders',
+      chest: 'Chest',
+      legs: 'Legs',
+      feet: 'Feet',
+      hands: 'Hands',
+      mainhand: 'Main Hand',
+      offhand: 'Off Hand',
+      trinket: 'Trinket',
+    };
+
+    const handleMouseEnter = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = window.setTimeout(() => {
+        setShowTooltip(true);
+      }, 300);
+    };
+
+    const handleMouseLeave = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setShowTooltip(false);
+    };
+
+    const updateTooltipPosition = useCallback(() => {
+      if (!showTooltip || !tooltipRef.current || !triggerRef.current) return;
+
+      const tooltip = tooltipRef.current;
+      const trigger = triggerRef.current;
+      const rect = trigger.getBoundingClientRect();
+      const tooltipHeight = tooltip.offsetHeight || 200;
+      const tooltipWidth = tooltip.offsetWidth || 250;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const padding = 10;
+      
+      let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+      let top = rect.top - tooltipHeight - 8;
+
+      if (left < padding) {
+        left = padding;
+      } else if (left + tooltipWidth > viewportWidth - padding) {
+        left = viewportWidth - tooltipWidth - padding;
+      }
+
+      const spaceAbove = rect.top;
+      const spaceBelow = viewportHeight - rect.bottom;
+      
+      if (spaceAbove >= tooltipHeight + 8) {
+        top = rect.top - tooltipHeight - 8;
+      } else if (spaceBelow >= tooltipHeight + 8) {
+        top = rect.bottom + 8;
+      } else {
+        if (spaceBelow > spaceAbove) {
+          top = rect.bottom + 8;
+          if (top + tooltipHeight > viewportHeight - padding) {
+            top = viewportHeight - tooltipHeight - padding;
+          }
+        } else {
+          top = rect.top - tooltipHeight - 8;
+          if (top < padding) {
+            top = padding;
+          }
+        }
+      }
+
+      setTooltipPosition({ top, left });
+    }, [showTooltip]);
+
+    const handleMouseMove = () => {
+      updateTooltipPosition();
+    };
+
+    useEffect(() => {
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }, []);
+
+    useEffect(() => {
+      if (showTooltip) {
+        const timer = setTimeout(() => {
+          updateTooltipPosition();
+        }, 10);
+        return () => clearTimeout(timer);
+      }
+    }, [showTooltip, updateTooltipPosition]);
+
+    const slotName = slotLabels[slot] || slot;
+
+    return (
+      <div
+        ref={triggerRef}
+        className={`slot-tooltip-trigger equipment-slot-${slot}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onMouseMove={handleMouseMove}
+      >
+        {children}
+        {showTooltip && (
+          <div
+            ref={tooltipRef}
+            className="slot-tooltip"
+            style={{
+              top: `${tooltipPosition.top}px`,
+              left: `${tooltipPosition.left}px`,
+            }}
+          >
+            {item ? (
+              <>
+                <div className="slot-tooltip-header">
+                  <span className="slot-tooltip-item-name">{item.itemName}</span>
+                  <span
+                    className="slot-tooltip-rarity"
+                    style={{ color: rarityColor(item.rarity) }}
+                  >
+                    {item.rarity}
+                  </span>
+                </div>
+                <div className="slot-tooltip-type">{slotName} • {item.itemType}</div>
+                {item.stats && Object.keys(item.stats).length > 0 && (
+                  <div className="slot-tooltip-stats">
+                    {Object.entries(item.stats).map(([key, value]) => {
+                      const statLabels: Record<string, string> = {
+                        attack: '⚔️ Attack',
+                        defense: '🛡️ Defense',
+                        speed: '⚡ Speed',
+                        health: '❤️ Health',
+                        critChance: '🎯 Crit Chance',
+                        critDamage: '💥 Crit Damage',
+                      };
+                      return (
+                        <div key={key} className="slot-tooltip-stat">
+                          <span className="stat-label">{statLabels[key] || key}:</span>
+                          <span className="stat-value">+{value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="slot-tooltip-header">
+                  <span className="slot-tooltip-slot-name">{slotName}</span>
+                </div>
+                <div className="slot-tooltip-empty">Empty</div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Equipment Slot Component
-  const EquipmentSlot = ({ slot, item, rarityColor, onUnequip, equipping }: {
+  const EquipmentSlot = ({ slot, item, rarityColor, onUnequip, equipping, showUnequip = true }: {
     slot: string;
     item?: EquippedItem;
     rarityColor: (rarity: string) => string;
     onUnequip: (itemId: string) => void;
     equipping: string | null;
+    showUnequip?: boolean;
   }) => {
     const slotLabels: Record<string, string> = {
       head: 'Head',
@@ -239,33 +457,36 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
     };
 
     return (
-      <div className={`equipment-slot equipment-slot-${slot}`} title={slotLabels[slot] || slot}>
-        {item ? (
-          <div
-            className={`equipped-item-slot ${item.rarity.toLowerCase()}`}
-            style={{ '--rarity-color': rarityColor(item.rarity) } as React.CSSProperties}
-            title={`${item.itemName} - ${item.rarity}`}
-          >
-            <div className="item-slot-icon">{getItemIcon(item.itemType)}</div>
-            <div className="item-slot-glow" style={{ '--rarity-color': rarityColor(item.rarity) } as React.CSSProperties}></div>
-            <button
-              className="unequip-slot-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUnequip(item.itemId);
-              }}
-              disabled={equipping === item.itemId}
-              title="Unequip"
+      <SlotTooltip slot={slot} item={item} rarityColor={rarityColor}>
+        <div className="equipment-slot">
+          {item ? (
+            <div
+              className={`equipped-item-slot ${item.rarity.toLowerCase()}`}
+              style={{ '--rarity-color': rarityColor(item.rarity) } as React.CSSProperties}
             >
-              ×
-            </button>
-          </div>
-        ) : (
-          <div className="empty-slot" title={`No ${slotLabels[slot] || slot} equipped`}>
-            <div className="slot-icon-placeholder">+</div>
-          </div>
-        )}
-      </div>
+              <div className="item-slot-icon">{getItemIcon(item.itemType)}</div>
+              <div className="item-slot-glow" style={{ '--rarity-color': rarityColor(item.rarity) } as React.CSSProperties}></div>
+              {showUnequip && (
+                <button
+                  className="unequip-slot-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnequip(item.itemId);
+                  }}
+                  disabled={equipping === item.itemId}
+                  title="Unequip"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="empty-slot">
+              <div className="slot-icon-placeholder">+</div>
+            </div>
+          )}
+        </div>
+      </SlotTooltip>
     );
   };
 
@@ -362,15 +583,17 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                 {profile.username?.[0]?.toUpperCase() || walletAddress[0]?.toUpperCase() || '?'}
               </div>
             )}
-            <button
-              className="avatar-edit-btn"
-              onClick={() => setEditingAvatar(!editingAvatar)}
-              title="Change avatar"
-            >
-              ✏️
-            </button>
+            {isOwnProfile && (
+              <button
+                className="avatar-edit-btn"
+                onClick={() => setEditingAvatar(!editingAvatar)}
+                title="Change avatar"
+              >
+                ✏️
+              </button>
+            )}
           </div>
-          {editingAvatar && (
+          {isOwnProfile && editingAvatar && (
             <div className="avatar-editor">
               <input
                 type="text"
@@ -429,19 +652,23 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
             </div>
             {profile.inGameWalletAddress && (
               <div className="wallet-card-inline">
-                <div className="wallet-label">💼 Deposit Address</div>
-                <div className="wallet-value deposit-address" title={profile.inGameWalletAddress}>
-                  {profile.inGameWalletAddress.slice(0, 6)}...{profile.inGameWalletAddress.slice(-4)}
+                <div className="wallet-row-inline">
+                  <div className="wallet-info-inline">
+                    <div className="wallet-label">💼 Deposit Address</div>
+                    <div className="wallet-value deposit-address" title={profile.inGameWalletAddress}>
+                      {profile.inGameWalletAddress.slice(0, 6)}...{profile.inGameWalletAddress.slice(-4)}
+                    </div>
+                  </div>
+                  <button
+                    className="copy-address-btn-inline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(profile.inGameWalletAddress);
+                      alert('Deposit address copied to clipboard!');
+                    }}
+                  >
+                    📋 Copy
+                  </button>
                 </div>
-                <button
-                  className="copy-address-btn-inline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(profile.inGameWalletAddress);
-                    alert('Deposit address copied to clipboard!');
-                  }}
-                >
-                  📋 Copy
-                </button>
               </div>
             )}
           </div>
@@ -475,7 +702,32 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
 
       {/* WoW-Inspired Character Panel */}
       <div className="character-panel-section">
-        <h3>⚔️ Character</h3>
+        <div className="character-panel-header">
+          <h3>⚔️ Character</h3>
+          {/* Level and EXP Display */}
+          {(profile.level !== undefined || profile.exp !== undefined) && (
+            <div className="character-level-exp">
+              <div className="character-level-display">
+                <span className="character-level-label">Level</span>
+                <span className="character-level-value">{profile.level || 1}</span>
+              </div>
+              <div className="character-exp-bar-container">
+                <div className="character-exp-bar-label">
+                  <span>EXP: {profile.expInCurrentLevel || 0} / {profile.expNeededForCurrentLevel || 100}</span>
+                  <span className="character-exp-to-next">({profile.expToNextLevel || 100} to next)</span>
+                </div>
+                <div className="character-exp-bar">
+                  <div 
+                    className="character-exp-bar-fill"
+                    style={{ width: `${profile.progressPercent || 0}%` }}
+                  >
+                    <div className="character-exp-bar-glow"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="character-panel">
           <div className="character-avatar-container">
             {/* Character Avatar */}
@@ -497,6 +749,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Shoulders */}
@@ -506,6 +759,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Chest */}
@@ -515,6 +769,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Legs */}
@@ -524,6 +779,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Feet */}
@@ -533,6 +789,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Hands */}
@@ -542,6 +799,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Main Hand (Weapon) */}
@@ -551,6 +809,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Off Hand (Shield) */}
@@ -560,6 +819,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
                 
                 {/* Trinket (PowerUp) */}
@@ -569,6 +829,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                   rarityColor={getRarityColor}
                   onUnequip={handleUnequip}
                   equipping={equipping}
+                  showUnequip={isOwnProfile}
                 />
               </div>
             </div>
@@ -592,14 +853,16 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
                       <div className="item-type-mini">{item.itemType}</div>
                       {renderItemStats(item.stats)}
                     </div>
-                    <button
-                      className="unequip-btn-mini"
-                      onClick={() => handleUnequip(item.itemId)}
-                      disabled={equipping === item.itemId}
-                      title="Unequip"
-                    >
-                      ×
-                    </button>
+                    {isOwnProfile && (
+                      <button
+                        className="unequip-btn-mini"
+                        onClick={() => handleUnequip(item.itemId)}
+                        disabled={equipping === item.itemId}
+                        title="Unequip"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -608,48 +871,52 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
         </div>
       </div>
 
-      <div className="inventory-section">
-        <h3>🎒 Full Inventory ({items.length})</h3>
-        {items.length === 0 ? (
-          <div className="empty-inventory">
-            <p>No items found yet. Play games to discover rare items!</p>
-          </div>
-        ) : (
-          <div className="inventory-grid">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className={`inventory-item ${item.rarity.toLowerCase()} ${item.equipped ? 'equipped' : ''}`}
-                style={{ '--rarity-color': getRarityColor(item.rarity) } as React.CSSProperties}
-              >
-                <div className="item-header">
-                  <span className="item-name">{item.itemName}</span>
-                  {item.equipped && <span className="equipped-indicator">✓</span>}
-                </div>
-                <div className="item-type">{item.itemType}</div>
-                <div className="item-rarity">{item.rarity}</div>
-                <button
-                  className={`equip-btn ${item.equipped ? 'unequip' : ''}`}
-                  onClick={() =>
-                    item.equipped
-                      ? handleUnequip(item.itemId)
-                      : handleEquip(item.itemId, item.itemType)
-                  }
-                  disabled={equipping === item.itemId}
+      {isOwnProfile && (
+        <div className="inventory-section">
+          <h3>🎒 Full Inventory ({items.length})</h3>
+          {items.length === 0 ? (
+            <div className="empty-inventory">
+              <p>No items found yet. Play games to discover rare items!</p>
+            </div>
+          ) : (
+            <div className="inventory-grid">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className={`inventory-item ${item.rarity.toLowerCase()} ${item.equipped ? 'equipped' : ''}`}
+                  style={{ '--rarity-color': getRarityColor(item.rarity) } as React.CSSProperties}
                 >
-                  {equipping === item.itemId
-                    ? '...'
-                    : item.equipped
-                    ? 'Unequip'
-                    : 'Equip'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                  <div className="item-header">
+                    <span className="item-name">{item.itemName}</span>
+                    {item.equipped && <span className="equipped-indicator">✓</span>}
+                  </div>
+                  <div className="item-type">{item.itemType}</div>
+                  <div className="item-rarity">{item.rarity}</div>
+                  {renderItemStats(item.stats)}
+                  <button
+                    className={`equip-btn ${item.equipped ? 'unequip' : ''}`}
+                    onClick={() =>
+                      item.equipped
+                        ? handleUnequip(item.itemId)
+                        : handleEquip(item.itemId, item.itemType)
+                    }
+                    disabled={equipping === item.itemId}
+                  >
+                    {equipping === item.itemId
+                      ? '...'
+                      : item.equipped
+                      ? 'Unequip'
+                      : 'Equip'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      <div className="voice-settings-section">
+      {isOwnProfile && (
+        <div className="voice-settings-section">
         <h3>🎤 Voice Chat Settings</h3>
         <div className="voice-settings-content">
           <div className="setting-row">
@@ -725,6 +992,7 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

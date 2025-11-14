@@ -123,14 +123,43 @@ async function getTokenBalance(wallet: PublicKey, mint: PublicKey): Promise<numb
 // Check if wallet holds the Kicking It ($SOCCER) token
 const KICKING_IT_TOKEN_MINT = '6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump';
 
+// Helper function to validate if a string is a valid Solana address
+function isValidSolanaAddress(address: string): boolean {
+  if (!address || typeof address !== 'string') {
+    return false;
+  }
+  // Solana addresses are base58 encoded and typically 32-44 characters
+  if (address.length < 32 || address.length > 44) {
+    return false;
+  }
+  // Check if it's base58 (only contains alphanumeric characters excluding 0, O, I, l)
+  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+  if (!base58Regex.test(address)) {
+    return false;
+  }
+  // Try to create a PublicKey to validate
+  try {
+    new PublicKey(address);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function checkKickItTokenHolder(walletAddress: string): Promise<boolean> {
   try {
+    // Validate wallet address before proceeding
+    if (!isValidSolanaAddress(walletAddress)) {
+      console.warn(`Invalid Solana address format: ${walletAddress}`);
+      return false;
+    }
+    
     const publicKey = new PublicKey(walletAddress);
     const mintPubkey = new PublicKey(KICKING_IT_TOKEN_MINT);
     const balance = await getTokenBalance(publicKey, mintPubkey);
     return balance > 0;
   } catch (error) {
-    console.error('Error checking Kicking It token holder:', error);
+    console.error(`Error checking Kicking It token holder for ${walletAddress}:`, error);
     return false;
   }
 }

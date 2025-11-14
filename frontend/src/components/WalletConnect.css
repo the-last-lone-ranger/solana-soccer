@@ -11,7 +11,7 @@
   color: var(--text-primary);
   animation: fadeIn 0.5s ease-out;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   transition: all var(--transition-base);
   width: 100%;
   box-sizing: border-box;
@@ -20,6 +20,8 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  flex-shrink: 0;
+  min-height: fit-content;
 }
 
 @keyframes fadeIn {
@@ -41,6 +43,7 @@
   background: radial-gradient(circle, var(--accent-light) 0%, transparent 70%);
   animation: rotate 20s linear infinite;
   pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes rotate {
@@ -271,6 +274,10 @@
   box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 1;
+  overflow: visible;
+  min-height: fit-content;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wallet-info .wallet-provider {
@@ -310,8 +317,13 @@
   border: 1px solid var(--border-color);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: break-word;
   text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  min-width: 0;
 }
 
 [data-theme='light'] .wallet-address {

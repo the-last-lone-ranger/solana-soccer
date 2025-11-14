@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/openkit.js';
 import { checkTokenOwnership, TokenGateConfig, verifySolTransfer, getSolBalance, checkKickItTokenHolder } from '../services/solana.js';
 import { generateItemDrop } from '../services/items.js';
 import { getOrCreateInGameWallet, getInGameWalletAddress, getInGameWalletKeypair } from '../services/wallet.js';
+import { calculateExpGain, addExp, getPlayerLevelInfo } from '../services/expSystem.js';
 import { Connection, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { randomUUID } from 'crypto';
 
@@ -101,6 +102,11 @@ router.get('/users', async (req: Request, res: Response) => {
     // Check token holder status for all users (in batches to avoid rate limits)
     const usersWithTokenStatus = await Promise.all(
       users.map(async (user) => {
+        // Skip if walletAddress is invalid or missing
+        if (!user.walletAddress || typeof user.walletAddress !== 'string') {
+          return { ...user, isKickItTokenHolder: false };
+        }
+        
         try {
           const isHolder = await checkKickItTokenHolder(user.walletAddress);
           return { ...user, isKickItTokenHolder: isHolder };
@@ -141,6 +147,10 @@ router.get('/players/:walletAddress/equipped-items', async (req: Request, res: R
     const equipped = await dbQueries.getEquippedItems(walletAddress);
     const player = await dbQueries.getOrCreatePlayer(walletAddress);
     const hasCrown = await dbQueries.hasCrown(walletAddress);
+    
+    // Get level and EXP info
+    const { level, exp } = await dbQueries.getPlayerLevel(walletAddress);
+    const levelInfo = getPlayerLevelInfo(level, exp);
 
     res.json({
       walletAddress,
@@ -154,6 +164,12 @@ router.get('/players/:walletAddress/equipped-items', async (req: Request, res: R
         rarity: item.rarity,
       })),
       hasCrown,
+      level: levelInfo.level,
+      exp: levelInfo.exp,
+      expToNextLevel: levelInfo.expToNextLevel,
+      expInCurrentLevel: levelInfo.expInCurrentLevel,
+      expNeededForCurrentLevel: levelInfo.expNeededForCurrentLevel,
+      progressPercent: levelInfo.progressPercent,
     });
   } catch (error) {
     console.error('Error fetching equipped items:', error);
@@ -177,6 +193,10 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
     
     // Check if user holds Kicking It ($SOCCER) token
     const isKickItTokenHolder = await checkKickItTokenHolder(user.address);
+
+    // Get level and EXP info
+    const { level, exp } = await dbQueries.getPlayerLevel(user.address);
+    const levelInfo = getPlayerLevelInfo(level, exp);
 
     res.json({
       walletAddress: user.address,
@@ -202,6 +222,12 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       hasCrown,
       isLeader,
       isKickItTokenHolder,
+      level: levelInfo.level,
+      exp: levelInfo.exp,
+      expToNextLevel: levelInfo.expToNextLevel,
+      expInCurrentLevel: levelInfo.expInCurrentLevel,
+      expNeededForCurrentLevel: levelInfo.expNeededForCurrentLevel,
+      progressPercent: levelInfo.progressPercent,
       voiceSettings: {
         enabled: (player.voice_enabled ?? 0) === 1,
         pushToTalkKey: player.push_to_talk_key || 'v',
@@ -985,6 +1011,26 @@ router.post('/matches/:matchId/result', requireAuth, async (req: Request, res: R
     await dbQueries.updatePlayerStats(match.creator_address, creatorScore);
     if (match.opponent_address) {
       await dbQueries.updatePlayerStats(match.opponent_address, opponentScore);
+    }
+
+    // Award EXP for the winner
+    try {
+      const { level, exp } = await dbQueries.getPlayerLevel(winnerAddress);
+      const winnerScore = winnerAddress === match.creator_address ? creatorScore : opponentScore;
+      const expGain = calculateExpGain(match.bet_amount_sol, level, winnerScore, false);
+      const expResult = addExp(level, exp, expGain);
+      
+      await dbQueries.addPlayerExp(
+        winnerAddress,
+        expGain,
+        expResult.newLevel,
+        expResult.newExp
+      );
+      
+      console.log(`[EXP] Player ${winnerAddress} gained ${expGain} EXP (${expResult.leveledUp ? 'LEVEL UP!' : ''})`);
+    } catch (error) {
+      console.error(`[EXP] Error awarding EXP to ${winnerAddress}:`, error);
+      // Don't fail the request if EXP award fails
     }
 
     // Get player info

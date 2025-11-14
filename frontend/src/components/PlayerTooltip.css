@@ -1,8 +1,8 @@
-/* Player Tooltip - Hover to see equipped items */
+/* Player Tooltip - World of Warcraft Style Character Inspection */
 
 .player-tooltip-trigger {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
 }
 
 .player-tooltip {
@@ -23,93 +23,289 @@
   animation: fadeInTooltip 0.2s ease-out;
 }
 
-@keyframes fadeInTooltip {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* WoW-Style Inspection Window */
+.player-tooltip.wow-inspection {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: 2px solid #c9aa71;
+  border-radius: 4px;
+  box-shadow: 
+    0 0 20px rgba(201, 170, 113, 0.4),
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.8);
+  padding: 0;
+  min-width: 280px;
+  max-width: 320px;
+  font-family: 'Friz Quadrata', 'Arial', sans-serif;
+  color: #f4e4bc;
+  overflow: visible;
 }
 
-.tooltip-header {
+/* WoW Header */
+.wow-header {
+  background: linear-gradient(to bottom, #3a3427 0%, #2a2419 100%);
+  border-bottom: 1px solid #c9aa71;
+  padding: 12px;
+  position: relative;
+}
+
+.wow-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #c9aa71, transparent);
+}
+
+.wow-character-info {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.wow-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  border: 2px solid #c9aa71;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.wow-avatar-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.wow-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.wow-name-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.wow-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.wow-character-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffd700;
+  text-shadow: 
+    0 0 4px rgba(255, 215, 0, 0.5),
+    1px 1px 2px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wow-crown {
+  font-size: 18px;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+  flex-shrink: 0;
+}
+
+.wow-level {
+  font-size: 12px;
+  color: #c9aa71;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Stats Section */
+.wow-stats-section {
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(201, 170, 113, 0.3);
+}
+
+.wow-stat-row {
+  display: flex;
   justify-content: space-between;
-  margin-bottom: 0.625rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
 }
 
-.tooltip-username {
+.wow-stat-label {
+  color: #c9aa71;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.wow-stat-value {
+  color: #ffffff;
   font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  font-family: var(--font-display);
+  font-size: 13px;
 }
 
-.crown-icon {
-  font-size: 1rem;
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+.wow-stat-value.sol-value {
+  color: #ffd700;
+  font-weight: 700;
 }
 
-.tooltip-content {
-  min-height: 40px;
-  max-height: calc(70vh - 80px);
-  overflow-y: auto;
+/* Equipment Section */
+.wow-equipment-section {
+  padding: 10px 12px;
 }
 
-.tooltip-loading,
-.tooltip-empty {
+.wow-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #c9aa71;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(201, 170, 113, 0.3);
+}
+
+.wow-loading,
+.wow-empty {
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  padding: 0.5rem 0;
+  color: #9d9d9d;
+  font-size: 12px;
+  padding: 12px 0;
   font-style: italic;
 }
 
-.tooltip-items {
+.wow-equipment-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 6px;
 }
 
-.tooltip-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+.wow-equipment-item {
+  background: rgba(0, 0, 0, 0.4);
   border-left: 3px solid;
-  transition: all var(--transition-base);
+  border-radius: 2px;
+  padding: 8px;
+  transition: all 0.2s;
 }
 
-.tooltip-item:hover {
-  background: var(--bg-hover);
+.wow-equipment-item:hover {
+  background: rgba(0, 0, 0, 0.6);
   transform: translateX(2px);
 }
 
-.item-name {
+.wow-item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.wow-item-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.wow-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wow-item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.wow-item-name {
+  font-size: 13px;
   font-weight: 600;
-  font-size: 0.8125rem;
-  color: var(--text-primary);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  word-break: break-word;
 }
 
-.item-rarity {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.wow-item-slot {
+  font-size: 11px;
+  color: #9d9d9d;
+  text-transform: capitalize;
 }
 
-/* Mobile - hide tooltip on touch devices or make it simpler */
-@media (max-width: 768px) {
-  .player-tooltip {
-    display: none; /* Hide on mobile to avoid touch issues */
+.wow-item-stats {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(201, 170, 113, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wow-item-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.wow-stat-name {
+  color: #9d9d9d;
+}
+
+.wow-stat-value {
+  color: #1eff00;
+  font-weight: 600;
+}
+
+/* Scrollbar styling for WoW theme */
+.wow-inspection::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wow-inspection::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+.wow-inspection::-webkit-scrollbar-thumb {
+  background: #c9aa71;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.wow-inspection::-webkit-scrollbar-thumb:hover {
+  background: #d4b882;
+}
+
+@keyframes fadeInTooltip {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
+/* Dark theme adjustments */
+[data-theme='dark'] .player-tooltip.wow-inspection {
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+}
+
+/* Mobile - hide tooltip on touch devices */
+@media (max-width: 768px) {
+  .player-tooltip {
+    display: none;
+  }
+}

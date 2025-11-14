@@ -293,13 +293,13 @@ body {
 
 /* Sidebar */
 .sidebar {
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   position: sticky;
   top: calc(80px + 1.5rem);
   align-self: start;
-  height: calc(100vh - 120px);
   max-height: calc(100vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -307,6 +307,32 @@ body {
   min-width: 0;
   align-items: stretch;
   box-sizing: border-box;
+}
+
+.sidebar > * {
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+/* Override sidebar behavior for leaderboard and users pages */
+.leaderboard-page,
+.users-page {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.leaderboard-page .sidebar > *,
+.users-page .sidebar > * {
+  flex-shrink: 1;
+}
+
+.leaderboard-page .wallet-connect,
+.users-page .wallet-connect {
+  flex-shrink: 1;
+  min-height: auto;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -328,11 +354,32 @@ body {
 
 /* Main Content */
 .main-content {
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 1.5rem;
   min-width: 0;
+}
+
+
+/* Allow LobbyBrowser to create its own grid layout - only on lobbies page */
+.app-content:has(.lobby-browser) {
+  grid-template-columns: 1fr; /* Single column for LobbyBrowser */
+  padding: 0;
+  display: block;
+}
+
+.app-content:has(.lobby-browser) .sidebar:first-of-type {
+  display: none; /* Hide the original sidebar on lobbies page */
+}
+
+.app-content:has(.lobby-browser) .main-content {
+  display: contents; /* Let lobby-browser handle its own layout */
+  padding: 0;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Game Menu - Notion Style Card */
@@ -737,6 +784,7 @@ body {
     gap: 1.25rem;
     padding: 1.25rem;
   }
+
 }
 
 @media (max-width: 1024px) {
@@ -746,7 +794,9 @@ body {
     padding: 1rem;
   }
 
+
   .sidebar {
+    grid-column: 1;
     position: static;
     height: auto;
     max-height: none;
@@ -754,6 +804,7 @@ body {
   }
 
   .main-content {
+    grid-column: 1;
     order: 1;
   }
 

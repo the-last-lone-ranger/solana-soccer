@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ApiClient } from '../services/api.js';
 import { useTheme } from '../contexts/ThemeContext.js';
+import { LoadingSpinner, SkeletonLoader } from './LoadingSpinner.js';
 import './Users.css';
 
 const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
@@ -10,6 +12,7 @@ interface User {
   username: string | null;
   avatarUrl: string | null;
   createdAt: string;
+  level: number;
   gamesPlayed: number;
   totalScore: number;
   highScore: number;
@@ -25,6 +28,7 @@ interface UsersProps {
 
 export function Users({ apiClient }: UsersProps) {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +51,50 @@ export function Users({ apiClient }: UsersProps) {
   };
 
   if (loading) {
-    return <div className="users loading">Loading users...</div>;
+    return (
+      <div className={`users users-${theme}`}>
+        <h2>👥 Platform Users</h2>
+        <div className="users-loading-container">
+          <LoadingSpinner size="lg" text="Loading users..." />
+          <div className="users-skeleton-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Games</th>
+                  <th>Rounds</th>
+                  <th>Wins</th>
+                  <th>High Score</th>
+                  <th>Total SOL Won</th>
+                  <th>Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="skeleton-row">
+                    <td className="player-cell">
+                      <div className="player-info">
+                        <SkeletonLoader width="36px" height="36px" className="skeleton-avatar" />
+                        <div className="player-details">
+                          <SkeletonLoader width="120px" height="16px" />
+                          <SkeletonLoader width="80px" height="12px" className="skeleton-wallet" />
+                        </div>
+                      </div>
+                    </td>
+                    <td><SkeletonLoader width="40px" height="16px" /></td>
+                    <td><SkeletonLoader width="40px" height="16px" /></td>
+                    <td><SkeletonLoader width="60px" height="16px" /></td>
+                    <td><SkeletonLoader width="80px" height="16px" /></td>
+                    <td><SkeletonLoader width="90px" height="16px" /></td>
+                    <td><SkeletonLoader width="70px" height="16px" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -85,17 +132,26 @@ export function Users({ apiClient }: UsersProps) {
               const joinedDate = new Date(user.createdAt).toLocaleDateString();
               
               return (
-                <tr key={user.walletAddress}>
+                <tr 
+                  key={user.walletAddress}
+                  className="user-row-clickable"
+                  onClick={() => navigate(`/profile/${user.walletAddress}`)}
+                >
                   <td className="player-cell">
                     <div className="player-info">
-                      <div className="player-avatar">
-                        {user.avatarUrl && EMOJI_AVATARS.includes(user.avatarUrl) ? (
-                          <span className="avatar-emoji-small">{user.avatarUrl}</span>
-                        ) : user.avatarUrl ? (
-                          <img src={user.avatarUrl} alt={displayName} className="avatar-image-small" />
-                        ) : (
-                          <div className="avatar-initials-small">{avatar}</div>
-                        )}
+                      <div className="player-avatar-wrapper">
+                        <div className="player-avatar">
+                          {user.avatarUrl && EMOJI_AVATARS.includes(user.avatarUrl) ? (
+                            <span className="avatar-emoji-small">{user.avatarUrl}</span>
+                          ) : user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={displayName} className="avatar-image-small" />
+                          ) : (
+                            <div className="avatar-initials-small">{avatar}</div>
+                          )}
+                        </div>
+                        <div className="player-level-badge">
+                          <span className="level-text">Lv {user.level}</span>
+                        </div>
                       </div>
                       <div className="player-details">
                         <span className="player-name">
