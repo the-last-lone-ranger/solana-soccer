@@ -430,6 +430,35 @@
   left: 100%;
 }
 
+.lobby-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.spectate-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: white;
+  background: rgba(100, 100, 100, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.spectate-btn:hover {
+  background: rgba(100, 100, 100, 0.5);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.spectate-btn:active {
+  transform: translateY(0);
+}
+
 .join-btn {
   background: var(--accent-color);
   color: white;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api.js';
+import { useTheme } from '../contexts/ThemeContext.js';
 import './Users.css';
 
 const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
@@ -15,6 +16,7 @@ interface User {
   roundsPlayed: number;
   roundsWon: number;
   totalSolWon: number;
+  isKickItTokenHolder?: boolean;
 }
 
 interface UsersProps {
@@ -22,6 +24,7 @@ interface UsersProps {
 }
 
 export function Users({ apiClient }: UsersProps) {
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export function Users({ apiClient }: UsersProps) {
   }
 
   return (
-    <div className="users">
+    <div className={`users users-${theme}`}>
       <h2>👥 Platform Users</h2>
       {users.length === 0 ? (
         <p className="empty">No users yet. Be the first!</p>
@@ -95,7 +98,14 @@ export function Users({ apiClient }: UsersProps) {
                         )}
                       </div>
                       <div className="player-details">
-                        <span className="player-name">{displayName}</span>
+                        <span className="player-name">
+                          {displayName}
+                          {user.isKickItTokenHolder && (
+                            <span className="token-badge" title="Kicking It ($SOCCER) Token Holder">
+                              ⚽
+                            </span>
+                          )}
+                        </span>
                         {!user.username && (
                           <span className="wallet-address">{user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-6)}</span>
                         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams, Link } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet.js';
 import { useTheme } from './contexts/ThemeContext.js';
 import { ApiClient } from './services/api.js';
@@ -15,6 +16,8 @@ import { FirstTimeSetup } from './components/FirstTimeSetup.js';
 import { Matchmaking } from './components/Matchmaking.js';
 import { LobbyBrowser } from './components/LobbyBrowser.js';
 import { SoccerGameCanvas } from './components/SoccerGameCanvas.js';
+import { LobbyWaitingRoomPage } from './pages/LobbyWaitingRoomPage.js';
+import { SpectateLobbyPage } from './pages/SpectateLobbyPage.js';
 import { WalletManager } from './components/WalletManager.js';
 import { Inventory } from './components/Inventory.js';
 import { RecentRounds } from './components/RecentRounds.js';
@@ -30,11 +33,11 @@ import './App.css';
 function App() {
   const { theme, toggleTheme } = useTheme();
   const { connected, address, authenticated, authenticate, authenticating, client } = useWallet();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [apiClient] = useState(() => new ApiClient(client));
   const [showGame, setShowGame] = useState(false);
   const [gameStats, setGameStats] = useState<GameStats | null>(null);
-  const [currentPage, setCurrentPage] = useState<'home' | 'lobbies' | 'leaderboard' | 'users' | 'profile'>('home');
-  const [showProfile, setShowProfile] = useState(false);
   const [foundItem, setFoundItem] = useState<GameItem | null>(null);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [nftCount] = useState(0);
@@ -48,6 +51,40 @@ function App() {
   const [isCompetitive, setIsCompetitive] = useState(false);
   const [isLobbyGame, setIsLobbyGame] = useState(false);
   const matchPollIntervalRef = useRef<number | null>(null);
+  const [totalSolBet, setTotalSolBet] = useState<number>(0);
+  const hasRedirectedToProfileRef = useRef<boolean>(false);
+  
+  // Get lobbyId from route params for game route
+  const { lobbyId: routeLobbyId } = useParams<{ lobbyId: string }>();
+  
+  // Load lobby when route changes to /game/:lobbyId
+  useEffect(() => {
+    if (routeLobbyId && location.pathname.startsWith('/game/')) {
+      // Load lobby data if needed
+      const loadLobby = async () => {
+        try {
+          const result = await apiClient.getLobbies();
+          const lobby = result.lobbies.find(l => l.id === routeLobbyId);
+          if (lobby && !currentLobby) {
+            setCurrentLobby(lobby);
+            const socketClient = new SocketClient();
+            const token = localStorage.getItem('google_auth_token') || 
+                          (apiClient as any).authCache?.get(`wallet_${address}`)?.token;
+            if (token) {
+              socketClient.connect(token);
+            }
+            setLobbySocketClient(socketClient);
+            setIsLobbyGame(true);
+            setIsCompetitive(true);
+            setShowGame(true);
+          }
+        } catch (err) {
+          console.error('Failed to load lobby:', err);
+        }
+      };
+      loadLobby();
+    }
+  }, [routeLobbyId, location.pathname, currentLobby, apiClient, address]);
 
   // OpenKit403Client handles reconnection and token caching internally
   // No need to manually reset flags or clear caches
@@ -168,7 +205,8 @@ function App() {
     setIsLobbyGame(true);
     setIsCompetitive(true);
     setShowGame(true);
-    setCurrentPage('home');
+    // Navigate to game route
+    navigate(`/game/${lobby.id}`);
     console.log('Lobby game starting:', lobby);
   };
 
@@ -210,10 +248,6 @@ function App() {
       } catch (error) {
         console.error('Failed to submit results:', error);
         // Still reset game state even if submission failed
-        setIsLobbyGame(false);
-        setCurrentLobby(null);
-        setLobbySocketClient(null);
-        setShowGame(false);
       }
     } else {
       // No lobby or results - just reset
@@ -226,6 +260,12 @@ function App() {
 
   const handleCloseModal = () => {
     setGameStats(null);
+    // Navigate back to lobby after closing modal
+    if (currentLobby) {
+      navigate(`/lobby/${currentLobby.id}`);
+    } else {
+      navigate('/lobbies');
+    }
   };
 
   // Load profile when wallet connects
@@ -299,6 +339,37 @@ function App() {
     setProfileLoaded(true);
   };
 
+  // Redirect to profile after wallet connects (for wallet logins, not Google)
+  useEffect(() => {
+    // Only redirect if:
+    // 1. Wallet is connected
+    // 2. Profile is loaded
+    // 3. Not showing first-time setup
+    // 4. Not a Google login (Google login handles its own redirect)
+    // 5. Haven't already redirected for this connection
+    // 6. Not already on profile page
+    // 7. Not in a game or lobby route
+    if (connected && address && profileLoaded && !showFirstTimeSetup && !hasRedirectedToProfileRef.current) {
+      const googleToken = localStorage.getItem('google_auth_token');
+      const isGameRoute = location.pathname.startsWith('/game/');
+      const isLobbyRoute = location.pathname.startsWith('/lobby/') || location.pathname.startsWith('/spectate/');
+      const isProfileRoute = location.pathname === '/profile';
+      
+      // Only redirect if this is a wallet login (not Google) and we're on a safe page
+      if (!googleToken && !isGameRoute && !isLobbyRoute && !isProfileRoute) {
+        hasRedirectedToProfileRef.current = true;
+        navigate('/profile');
+      }
+    }
+  }, [connected, address, profileLoaded, showFirstTimeSetup, location.pathname, navigate]);
+
+  // Reset redirect flag when wallet disconnects or address changes
+  useEffect(() => {
+    if (!connected || !address) {
+      hasRedirectedToProfileRef.current = false;
+    }
+  }, [connected, address]);
+
   // Clear auth cache when wallet disconnects or address changes
   // This ensures that if a different wallet connects, it will need to authenticate again
   const prevAddressRef = useRef<string | null>(null);
@@ -313,6 +384,31 @@ function App() {
       console.log('🔌 Wallet disconnected or changed - cleared auth cache');
     }
   }, [connected, address, apiClient]);
+
+  // Load and update total SOL bet counter
+  useEffect(() => {
+    if (!apiClient) return;
+    
+    // Check if method exists
+    if (typeof apiClient.getTotalSolBet !== 'function') {
+      console.error('apiClient.getTotalSolBet is not a function', apiClient);
+      return;
+    }
+    
+    const loadTotalSolBet = async () => {
+      try {
+        const result = await apiClient.getTotalSolBet();
+        setTotalSolBet(result.totalSolBet);
+      } catch (err) {
+        console.error('Failed to load total SOL bet:', err);
+      }
+    };
+
+    loadTotalSolBet();
+    // Update every 10 seconds
+    const interval = setInterval(loadTotalSolBet, 10000);
+    return () => clearInterval(interval);
+  }, [apiClient]);
 
   if (!connected || !address) {
     return (
@@ -341,12 +437,16 @@ function App() {
         <div className="app-header-content">
           <span className="emoji">🎮</span>
           <div>
-            <h1>⚽ Solana Soccer</h1>
-            <p>Multiplayer Soccer with SOL Betting</p>
+            <h1>⚽ Kicking It</h1>
+            <p>Multiplayer Soccer with $SOCCER</p>
           </div>
         </div>
+        <div className="total-sol-bet-counter">
+          <span className="counter-label">Total SOL Bet:</span>
+          <span className="counter-value">{totalSolBet.toFixed(2)} SOL</span>
+        </div>
         <div className="header-actions">
-          {authenticated && <WalletManager apiClient={apiClient} />}
+          {(authenticated || localStorage.getItem('google_auth_token')) && <WalletManager apiClient={apiClient} />}
           <button 
             className="theme-toggle-btn"
             onClick={toggleTheme}
@@ -354,162 +454,227 @@ function App() {
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
-          <a 
-            href="#lobbies" 
+          <Link 
+            to="/lobbies" 
             className="nav-link"
-            onClick={(e) => { 
-              e.preventDefault(); 
-              setShowProfile(false); // Close profile page if open
-              setCurrentPage('lobbies'); 
-            }}
-            style={{ fontWeight: currentPage === 'lobbies' ? 'bold' : 'normal' }}
+            style={{ fontWeight: location.pathname === '/lobbies' ? 'bold' : 'normal' }}
           >
             Lobby Browser
-          </a>
-          <a 
-            href="#leaderboard" 
+          </Link>
+          <Link 
+            to="/leaderboard" 
             className="nav-link"
-            onClick={(e) => { 
-              e.preventDefault(); 
-              setShowProfile(false); // Close profile page if open
-              setCurrentPage('leaderboard'); 
-            }}
-            style={{ fontWeight: currentPage === 'leaderboard' ? 'bold' : 'normal' }}
+            style={{ fontWeight: location.pathname === '/leaderboard' ? 'bold' : 'normal' }}
           >
             Leaderboard
-          </a>
-          <a 
-            href="#users" 
+          </Link>
+          <Link 
+            to="/users" 
             className="nav-link"
-            onClick={(e) => { 
-              e.preventDefault(); 
-              setShowProfile(false); // Close profile page if open
-              setCurrentPage('users'); 
-            }}
-            style={{ fontWeight: currentPage === 'users' ? 'bold' : 'normal' }}
+            style={{ fontWeight: location.pathname === '/users' ? 'bold' : 'normal' }}
           >
             Platform Users
-          </a>
+          </Link>
           {address && (
             <UserDropdown
               apiClient={apiClient}
-              onProfileClick={() => setShowProfile(true)}
+              onProfileClick={() => navigate('/profile')}
             />
           )}
         </div>
       </div>
 
       <div className="app-content">
-        {showProfile && address && profileLoaded ? (
-          <div className="profile-page">
-            <div style={{ padding: '1.5rem 2rem 0' }}>
-              <button
-                className="back-btn"
-                onClick={() => setShowProfile(false)}
-              >
-                ← Back to Game
-              </button>
-            </div>
-            <PlayerProfile apiClient={apiClient} walletAddress={address} />
-          </div>
-        ) : (
-          <>
-            <div className="sidebar">
-              <WalletConnect />
-              {authenticated && <TokenGate apiClient={apiClient} />}
-              {authenticated && address && <Inventory apiClient={apiClient} />}
-              <RecentRounds apiClient={apiClient} />
-            </div>
+        <Routes>
+          <Route path="/" element={
+            <>
+              <div className="sidebar">
+                <WalletConnect />
+                {authenticated && <TokenGate apiClient={apiClient} />}
+                {authenticated && address && <Inventory apiClient={apiClient} />}
+                <RecentRounds apiClient={apiClient} />
+              </div>
+              <div className="main-content">
+                <div className="game-menu">
+                  {/* Token Holder Benefits Banner */}
+                  <div className="token-benefits-banner">
+                    <div className="token-benefits-content">
+                      <div className="token-benefits-icon">⚽</div>
+                      <div className="token-benefits-text">
+                        <h2 className="token-benefits-title">🎯 OWN $SOCCER TOKEN = HIGHER REWARDS!</h2>
+                        <p className="token-benefits-subtitle">
+                          Token holders get <strong>2.5x better item drop rates</strong> and exclusive rewards!
+                        </p>
+                      </div>
+                    </div>
+                    <div className="token-contract-section">
+                      <div className="contract-address">
+                        <span className="contract-label">Contract:</span>
+                        <code className="contract-code">6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump</code>
+                        <button 
+                          className="contract-copy-btn"
+                          onClick={(e) => {
+                            navigator.clipboard.writeText('6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump');
+                            // Show feedback
+                            const btn = e.currentTarget;
+                            const originalText = btn.textContent;
+                            btn.textContent = '✓ Copied!';
+                            setTimeout(() => {
+                              btn.textContent = originalText;
+                            }, 2000);
+                          }}
+                          title="Copy contract address"
+                        >
+                          📋 Copy
+                        </button>
+                        <a
+                          href={`https://birdeye.so/token/6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump?chain=solana`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="contract-chart-btn"
+                          title="View chart on Birdeye"
+                        >
+                          📈 View Chart
+                        </a>
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="main-content">
-              {currentPage === 'lobbies' ? (
+                  {/* Creator Rewards Info */}
+                  <div className="creator-rewards-banner">
+                    <div className="creator-rewards-icon">💰</div>
+                    <div className="creator-rewards-text">
+                      <strong>30% of creator rewards go to $SOCCER token holders!</strong>
+                      <span> Holders receive regular rewards from platform revenue.</span>
+                    </div>
+                  </div>
+
+                  <div className="game-menu-hero">
+                    <div className="hero-icon">⚽</div>
+                    <h1 className="hero-title">Kicking It</h1>
+                    <p className="hero-subtitle">Compete in real-time multiplayer matches and earn $SOCCER!</p>
+                  </div>
+                  <div className="game-features">
+                    <div className="feature-card">
+                      <div className="feature-icon">⚽</div>
+                      <h3>Multiplayer Soccer</h3>
+                      <p>Join lobbies and compete in real-time matches</p>
+                    </div>
+                    <div className="feature-card">
+                      <div className="feature-icon">💰</div>
+                      <h3>Earn SOL</h3>
+                      <p>Win paid matches and collect your rewards</p>
+                    </div>
+                    <div className="feature-card">
+                      <div className="feature-icon">🏆</div>
+                      <h3>Leaderboards</h3>
+                      <p>Climb the ranks and show your skills</p>
+                    </div>
+                  </div>
+                  <div className="game-actions">
+                    <button onClick={() => navigate('/lobbies')} className="action-btn primary">
+                      <span className="btn-icon">⚽</span>
+                      <span className="btn-content">
+                        <span className="btn-title">Join Lobby</span>
+                        <span className="btn-subtitle">Play multiplayer soccer • Free or Bet SOL</span>
+                      </span>
+                      <span className="btn-arrow">→</span>
+                    </button>
+                  </div>
+                  <div className="game-info">
+                    <div className="info-badge">
+                      <span className="badge-icon">✨</span>
+                      <span>No tokens required to play • Connect with tokens/NFTs for better item drop rates</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          } />
+          <Route path="/lobbies" element={
+            <>
+              <div className="sidebar">
+                <WalletConnect />
+                {authenticated && <TokenGate apiClient={apiClient} />}
+                {authenticated && address && <Inventory apiClient={apiClient} />}
+                <RecentRounds apiClient={apiClient} />
+              </div>
+              <div className="main-content">
                 <LobbyBrowser
                   apiClient={apiClient}
                   onLobbyStart={handleLobbyStart}
                 />
-              ) : currentPage === 'leaderboard' ? (
+              </div>
+            </>
+          } />
+          <Route path="/lobby/:lobbyId" element={
+            <div className="app-content" style={{ gridTemplateColumns: '1fr' }}>
+              <LobbyWaitingRoomPage
+                apiClient={apiClient}
+                onLobbyStart={handleLobbyStart}
+              />
+            </div>
+          } />
+          <Route path="/spectate/:lobbyId" element={
+            <div className="app-content" style={{ gridTemplateColumns: '1fr' }}>
+              <SpectateLobbyPage
+                apiClient={apiClient}
+              />
+            </div>
+          } />
+          <Route path="/leaderboard" element={
+            <>
+              <div className="sidebar">
+                <WalletConnect />
+                {authenticated && <TokenGate apiClient={apiClient} />}
+                {authenticated && address && <Inventory apiClient={apiClient} />}
+                <RecentRounds apiClient={apiClient} />
+              </div>
+              <div className="main-content">
                 <Leaderboard apiClient={apiClient} />
-              ) : currentPage === 'users' ? (
+              </div>
+            </>
+          } />
+          <Route path="/users" element={
+            <>
+              <div className="sidebar">
+                <WalletConnect />
+                {authenticated && <TokenGate apiClient={apiClient} />}
+                {authenticated && address && <Inventory apiClient={apiClient} />}
+                <RecentRounds apiClient={apiClient} />
+              </div>
+              <div className="main-content">
                 <Users apiClient={apiClient} />
-              ) : showMatchmaking ? (
-                <Matchmaking
-                  apiClient={apiClient}
-                  onMatchStart={handleMatchStart}
-                />
-              ) : !showGame ? (
-                <div className="game-menu">
-              <div className="game-menu-hero">
-                <div className="hero-icon">⚽</div>
-                <h1 className="hero-title">Solana Soccer</h1>
-                <p className="hero-subtitle">Compete in real-time multiplayer matches and earn SOL!</p>
               </div>
-
-              <div className="game-features">
-                <div className="feature-card">
-                  <div className="feature-icon">⚽</div>
-                  <h3>Multiplayer Soccer</h3>
-                  <p>Join lobbies and compete in real-time matches</p>
+            </>
+          } />
+          <Route path="/profile" element={
+            address && profileLoaded ? (
+              <div className="profile-page">
+                <div style={{ padding: '1.5rem 2rem 0' }}>
+                  <button
+                    className="back-btn"
+                    onClick={() => navigate(-1)}
+                  >
+                    ← Back
+                  </button>
                 </div>
-                <div className="feature-card">
-                  <div className="feature-icon">💰</div>
-                  <h3>Earn SOL</h3>
-                  <p>Win paid matches and collect your rewards</p>
-                </div>
-                <div className="feature-card">
-                  <div className="feature-icon">🏆</div>
-                  <h3>Leaderboards</h3>
-                  <p>Climb the ranks and show your skills</p>
-                </div>
+                <PlayerProfile apiClient={apiClient} walletAddress={address} />
               </div>
-
-              <div className="game-actions">
-                <button onClick={() => setCurrentPage('lobbies')} className="action-btn primary">
-                  <span className="btn-icon">⚽</span>
-                  <span className="btn-content">
-                    <span className="btn-title">Join Lobby</span>
-                    <span className="btn-subtitle">Play multiplayer soccer • Free or Bet SOL</span>
-                  </span>
-                  <span className="btn-arrow">→</span>
-                </button>
-              </div>
-
-              <div className="game-info">
-                <div className="info-badge">
-                  <span className="badge-icon">✨</span>
-                  <span>No tokens required to play • Connect with tokens/NFTs for better item drop rates</span>
-                </div>
-              </div>
-
-            </div>
-          ) : isLobbyGame && currentLobby && lobbySocketClient ? (
-            <SoccerGameCanvas
-              lobby={currentLobby}
-              socketClient={lobbySocketClient}
-              onGameEnd={handleSoccerGameEnd}
-            />
-          ) : showGame ? (
-            // Legacy game modes - redirect to lobby browser
-            <div className="game-menu">
-              <div className="game-menu-hero">
-                <div className="hero-icon">⚽</div>
-                <h1 className="hero-title">Solana Soccer</h1>
-                <p className="hero-subtitle">Join a lobby to start playing!</p>
-              </div>
-              <div className="game-actions">
-                <button onClick={() => { setShowGame(false); setCurrentPage('lobbies'); }} className="action-btn primary">
-                  <span className="btn-icon">⚽</span>
-                  <span className="btn-content">
-                    <span className="btn-title">Join Lobby</span>
-                    <span className="btn-subtitle">Play multiplayer soccer</span>
-                  </span>
-                  <span className="btn-arrow">→</span>
-                </button>
-              </div>
-            </div>
-          ) : null}
-            </div>
-          </>
-        )}
+            ) : null
+          } />
+          <Route path="/game/:lobbyId" element={
+            isLobbyGame && currentLobby && lobbySocketClient ? (
+              <SoccerGameCanvas
+                lobby={currentLobby}
+                socketClient={lobbySocketClient}
+                onGameEnd={handleSoccerGameEnd}
+              />
+            ) : (
+              <div>Loading game...</div>
+            )
+          } />
+        </Routes>
       </div>
 
       {gameStats && (

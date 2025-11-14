@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useWallet } from '../hooks/useWallet.js';
+import { useWallet } from '../contexts/WalletContext.js';
 import { ApiClient } from '../services/api.js';
 import { VoiceChatService } from '../services/voiceChat.js';
 import type { Match, MatchStatus } from '@solana-defender/shared';
@@ -104,7 +104,12 @@ export function Matchmaking({ apiClient, onMatchStart }: MatchmakingProps) {
   };
 
   const joinMatch = async (match: Match) => {
-    if (!address) {
+    // Check for Google auth or wallet connection
+    const googleToken = localStorage.getItem('google_auth_token');
+    const googleAddress = localStorage.getItem('google_auth_address');
+    const isGoogleAuth = googleToken && googleAddress;
+    
+    if (!address && !isGoogleAuth) {
       setError('Wallet not connected');
       return;
     }

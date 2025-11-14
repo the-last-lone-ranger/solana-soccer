@@ -3,6 +3,7 @@ import type { PlayerPosition } from '@solana-defender/shared';
 export interface SoccerPlayer {
   walletAddress: string;
   username?: string;
+  avatarUrl?: string;
   x: number;
   y: number;
   velocityX: number;
@@ -54,17 +55,28 @@ export class SoccerGame {
   localPlayer: SoccerPlayer;
   remotePlayers: Map<string, SoccerPlayer> = new Map();
   
+  // Avatar image cache
+  avatarImages: Map<string, HTMLImageElement> = new Map();
+  avatarLoadPromises: Map<string, Promise<void>> = new Map();
+  
   // Ball
   ball: Ball;
   
   // Goals
   goals: Goal[] = [];
   
-  // Field dimensions
+  // Field dimensions (base dimensions, will scale with canvas)
   readonly FIELD_WIDTH = 800;
   readonly FIELD_HEIGHT = 600;
   readonly GOAL_WIDTH = 20;
   readonly GOAL_HEIGHT = 120;
+  readonly SCOREBOARD_HEIGHT = 100; // Height reserved for scoreboard at top
+  
+  // Current field dimensions (scaled to canvas)
+  fieldWidth: number = 800;
+  fieldHeight: number = 600;
+  canvasWidth: number = 800;
+  canvasHeight: number = 600;
   
   // Physics constants
   readonly PLAYER_SPEED = 5; // Increased from 4 for better movement
@@ -91,20 +103,35 @@ export class SoccerGame {
     }
     this.ctx = ctx;
     
-    // Set canvas size
-    this.canvas.width = this.FIELD_WIDTH;
-    this.canvas.height = this.FIELD_HEIGHT;
+    // Get display size from CSS (or use defaults)
+    // Note: canvas.width/height might be DPR-scaled, so we use CSS size instead
+    const displayWidth = canvas.clientWidth || parseInt(canvas.style.width) || this.FIELD_WIDTH;
+    const displayHeight = canvas.clientHeight || parseInt(canvas.style.height) || this.FIELD_HEIGHT;
     
-    // Initialize goals
+    // Store canvas dimensions
+    this.canvasWidth = displayWidth || this.FIELD_WIDTH;
+    this.canvasHeight = displayHeight || this.FIELD_HEIGHT;
+    
+    // Field dimensions = canvas minus scoreboard area
+    // Scoreboard is at top, field starts below it
+    this.fieldWidth = this.canvasWidth;
+    this.fieldHeight = Math.max(this.canvasHeight - this.SCOREBOARD_HEIGHT, this.FIELD_HEIGHT);
+    
+    // Calculate scale factors
+    const scaleX = this.fieldWidth / this.FIELD_WIDTH;
+    const scaleY = this.fieldHeight / this.FIELD_HEIGHT;
+    
+    // Initialize goals (scaled to field size, positioned relative to field start)
+    const fieldStartY = this.SCOREBOARD_HEIGHT; // Field starts below scoreboard
     this.goals = [
-      { x: 0, y: (this.FIELD_HEIGHT - this.GOAL_HEIGHT) / 2, width: this.GOAL_WIDTH, height: this.GOAL_HEIGHT, team: 'red' },
-      { x: this.FIELD_WIDTH - this.GOAL_WIDTH, y: (this.FIELD_HEIGHT - this.GOAL_HEIGHT) / 2, width: this.GOAL_WIDTH, height: this.GOAL_HEIGHT, team: 'blue' },
+      { x: 0, y: fieldStartY + (this.fieldHeight - this.GOAL_HEIGHT * scaleY) / 2, width: this.GOAL_WIDTH * scaleX, height: this.GOAL_HEIGHT * scaleY, team: 'red' },
+      { x: this.fieldWidth - this.GOAL_WIDTH * scaleX, y: fieldStartY + (this.fieldHeight - this.GOAL_HEIGHT * scaleY) / 2, width: this.GOAL_WIDTH * scaleX, height: this.GOAL_HEIGHT * scaleY, team: 'blue' },
     ];
     
-    // Initialize ball in center
+    // Initialize ball in center of field (not canvas)
     this.ball = {
-      x: this.FIELD_WIDTH / 2,
-      y: this.FIELD_HEIGHT / 2,
+      x: this.fieldWidth / 2,
+      y: fieldStartY + this.fieldHeight / 2,
       velocityX: 0,
       velocityY: 0,
       radius: this.BALL_RADIUS,
@@ -115,8 +142,9 @@ export class SoccerGame {
     this.localPlayer = {
       walletAddress: localWalletAddress,
       username: localUsername,
-      x: team === 'red' ? 150 : this.FIELD_WIDTH - 150,
-      y: this.FIELD_HEIGHT / 2,
+      avatarUrl: undefined, // Will be set from lobby
+      x: team === 'red' ? 150 * (this.fieldWidth / this.FIELD_WIDTH) : this.fieldWidth - 150 * (this.fieldWidth / this.FIELD_WIDTH),
+      y: fieldStartY + this.fieldHeight / 2,
       velocityX: 0,
       velocityY: 0,
       facing: 'right',
@@ -157,6 +185,32 @@ export class SoccerGame {
   stop(): void {
     this.isRunning = false;
   }
+
+  resize(width: number, height: number): void {
+    // Store canvas dimensions
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    
+    // Field dimensions = canvas minus scoreboard area
+    // Field MUST end at canvas bottom - no exceptions
+    this.fieldWidth = width;
+    this.fieldHeight = height - this.SCOREBOARD_HEIGHT; // Exact calculation - field ends at canvas bottom
+    
+    // Recalculate goals with new dimensions
+    const scaleX = this.fieldWidth / this.FIELD_WIDTH;
+    const scaleY = this.fieldHeight / this.FIELD_HEIGHT;
+    const fieldStartY = this.SCOREBOARD_HEIGHT;
+    const fieldEndY = this.canvasHeight; // Field ends exactly at canvas bottom
+    
+    this.goals = [
+      { x: 0, y: fieldStartY + (this.fieldHeight - this.GOAL_HEIGHT * scaleY) / 2, width: this.GOAL_WIDTH * scaleX, height: this.GOAL_HEIGHT * scaleY, team: 'red' },
+      { x: this.fieldWidth - this.GOAL_WIDTH * scaleX, y: fieldStartY + (this.fieldHeight - this.GOAL_HEIGHT * scaleY) / 2, width: this.GOAL_WIDTH * scaleX, height: this.GOAL_HEIGHT * scaleY, team: 'blue' },
+    ];
+    
+    // Ensure ball stays within field boundaries - use canvas height as absolute limit
+    this.ball.x = Math.max(this.BALL_RADIUS, Math.min(this.ball.x, this.fieldWidth - this.BALL_RADIUS));
+    this.ball.y = Math.max(fieldStartY + this.BALL_RADIUS, Math.min(this.ball.y, fieldEndY - this.BALL_RADIUS));
+  }
   
   updateLocalPlayer(deltaTime: number): void {
     const player = this.localPlayer;
@@ -191,9 +245,11 @@ export class SoccerGame {
     const newX = player.x + player.velocityX * deltaTime * 60;
     const newY = player.y + player.velocityY * deltaTime * 60;
     
-    // Boundary checks
-    player.x = Math.max(this.PLAYER_RADIUS, Math.min(newX, this.FIELD_WIDTH - this.PLAYER_RADIUS));
-    player.y = Math.max(this.PLAYER_RADIUS, Math.min(newY, this.FIELD_HEIGHT - this.PLAYER_RADIUS));
+    // Boundary checks - field starts below scoreboard, ends at canvas bottom
+    const fieldStartY = this.SCOREBOARD_HEIGHT;
+    const fieldEndY = this.canvasHeight; // Absolute limit - canvas bottom
+    player.x = Math.max(this.PLAYER_RADIUS, Math.min(newX, this.fieldWidth - this.PLAYER_RADIUS));
+    player.y = Math.max(fieldStartY + this.PLAYER_RADIUS, Math.min(newY, fieldEndY - this.PLAYER_RADIUS));
     
     // Check ball collision with extended range for easier kicking
     const dx = this.ball.x - player.x;
@@ -298,21 +354,25 @@ export class SoccerGame {
     this.ball.x += this.ball.velocityX * deltaTime * 60;
     this.ball.y += this.ball.velocityY * deltaTime * 60;
     
-    // Bounce off walls
+    // Field boundaries - field starts below scoreboard, ends at canvas bottom
+    const fieldStartY = this.SCOREBOARD_HEIGHT;
+    const fieldEndY = this.canvasHeight; // Absolute limit - canvas bottom
+    
+    // Bounce off walls - STOP AT CANVAS BOUNDARIES
     if (this.ball.x - this.BALL_RADIUS < 0) {
       this.ball.x = this.BALL_RADIUS;
       this.ball.velocityX *= -this.BALL_BOUNCE;
     }
-    if (this.ball.x + this.BALL_RADIUS > this.FIELD_WIDTH) {
-      this.ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
+    if (this.ball.x + this.BALL_RADIUS > this.fieldWidth) {
+      this.ball.x = this.fieldWidth - this.BALL_RADIUS;
       this.ball.velocityX *= -this.BALL_BOUNCE;
     }
-    if (this.ball.y - this.BALL_RADIUS < 0) {
-      this.ball.y = this.BALL_RADIUS;
+    if (this.ball.y - this.BALL_RADIUS < fieldStartY) {
+      this.ball.y = fieldStartY + this.BALL_RADIUS;
       this.ball.velocityY *= -this.BALL_BOUNCE;
     }
-    if (this.ball.y + this.BALL_RADIUS > this.FIELD_HEIGHT) {
-      this.ball.y = this.FIELD_HEIGHT - this.BALL_RADIUS;
+    if (this.ball.y + this.BALL_RADIUS > fieldEndY) {
+      this.ball.y = fieldEndY - this.BALL_RADIUS;
       this.ball.velocityY *= -this.BALL_BOUNCE;
     }
     
@@ -348,9 +408,10 @@ export class SoccerGame {
         
         this.onGoal?.(scoringTeam, scorer);
         
-        // Reset ball to center
-        this.ball.x = this.FIELD_WIDTH / 2;
-        this.ball.y = this.FIELD_HEIGHT / 2;
+        // Reset ball to center of field (not canvas)
+        const fieldStartY = this.SCOREBOARD_HEIGHT;
+        this.ball.x = this.fieldWidth / 2;
+        this.ball.y = fieldStartY + this.fieldHeight / 2;
         this.ball.velocityX = 0;
         this.ball.velocityY = 0;
         
@@ -362,7 +423,7 @@ export class SoccerGame {
     }
   }
   
-  updateRemotePlayer(walletAddress: string, position: PlayerPosition, hasCrown?: boolean): void {
+  updateRemotePlayer(walletAddress: string, position: PlayerPosition, hasCrown?: boolean, avatarUrl?: string): void {
     let remotePlayer = this.remotePlayers.get(walletAddress);
     
     if (!remotePlayer) {
@@ -370,6 +431,7 @@ export class SoccerGame {
       remotePlayer = {
         walletAddress,
         username: position.username,
+        avatarUrl: avatarUrl,
         x: position.x,
         y: position.y,
         velocityX: position.velocityX,
@@ -382,6 +444,10 @@ export class SoccerGame {
         hasCrown: hasCrown ?? false,
       };
       this.remotePlayers.set(walletAddress, remotePlayer);
+      // Load avatar if provided
+      if (avatarUrl) {
+        this.loadAvatar(walletAddress, avatarUrl);
+      }
     } else {
       remotePlayer.x = position.x;
       remotePlayer.y = position.y;
@@ -391,6 +457,10 @@ export class SoccerGame {
       if (position.username !== undefined) {
         remotePlayer.username = position.username;
       }
+      if (avatarUrl !== undefined && remotePlayer.avatarUrl !== avatarUrl) {
+        remotePlayer.avatarUrl = avatarUrl;
+        this.loadAvatar(walletAddress, avatarUrl);
+      }
       if (position.isSpeaking !== undefined) {
         remotePlayer.isSpeaking = position.isSpeaking;
       }
@@ -398,6 +468,45 @@ export class SoccerGame {
         remotePlayer.hasCrown = hasCrown;
       }
     }
+  }
+  
+  setLocalPlayerAvatar(avatarUrl?: string): void {
+    this.localPlayer.avatarUrl = avatarUrl;
+    if (avatarUrl) {
+      this.loadAvatar(this.localPlayer.walletAddress, avatarUrl);
+    }
+  }
+  
+  private loadAvatar(walletAddress: string, avatarUrl: string): void {
+    // Skip if already loaded or loading
+    if (this.avatarImages.has(walletAddress) || this.avatarLoadPromises.has(walletAddress)) {
+      return;
+    }
+    
+    // Check if it's an emoji (simple check)
+    const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
+    if (EMOJI_AVATARS.includes(avatarUrl)) {
+      // Emoji avatars don't need image loading
+      return;
+    }
+    
+    // Load image
+    const promise = new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        this.avatarImages.set(walletAddress, img);
+        this.avatarLoadPromises.delete(walletAddress);
+        resolve();
+      };
+      img.onerror = () => {
+        this.avatarLoadPromises.delete(walletAddress);
+        reject(new Error(`Failed to load avatar for ${walletAddress}`));
+      };
+      img.src = avatarUrl;
+    });
+    
+    this.avatarLoadPromises.set(walletAddress, promise);
   }
   
   updatePlayerCrown(walletAddress: string, hasCrown: boolean): void {
@@ -502,33 +611,45 @@ export class SoccerGame {
   render(): void {
     const ctx = this.ctx;
     
-    // Draw field (green grass with texture effect)
-    const fieldGradient = ctx.createLinearGradient(0, 0, 0, this.FIELD_HEIGHT);
+    // Clear entire canvas
+    ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    
+    // Draw scoreboard FIRST at the top (always visible)
+    this.drawUI(ctx);
+    
+    // Field starts below scoreboard
+    const fieldStartY = this.SCOREBOARD_HEIGHT;
+    
+    // Field ends exactly at canvas bottom
+    const fieldEndY = this.canvasHeight;
+    
+    // Draw field (green grass with texture effect) - positioned below scoreboard, ends at canvas bottom
+    const fieldGradient = ctx.createLinearGradient(0, fieldStartY, 0, fieldEndY);
     fieldGradient.addColorStop(0, '#8BC34A'); // Brighter green
     fieldGradient.addColorStop(0.5, '#7CB342'); // Medium green
     fieldGradient.addColorStop(1, '#689F38'); // Darker green
     ctx.fillStyle = fieldGradient;
-    ctx.fillRect(0, 0, this.FIELD_WIDTH, this.FIELD_HEIGHT);
+    ctx.fillRect(0, fieldStartY, this.fieldWidth, this.fieldHeight);
     
-    // Draw grass texture (subtle stripes)
+    // Draw grass texture (subtle stripes) - exactly to canvas bottom
     ctx.strokeStyle = 'rgba(76, 175, 80, 0.15)';
     ctx.lineWidth = 2;
-    for (let i = 0; i < this.FIELD_HEIGHT; i += 8) {
+    for (let i = fieldStartY; i < fieldEndY; i += 8) {
       ctx.beginPath();
       ctx.moveTo(0, i);
-      ctx.lineTo(this.FIELD_WIDTH, i);
+      ctx.lineTo(this.fieldWidth, i);
       ctx.stroke();
     }
     
-    // Draw center line with glow
+    // Draw center line with glow - exactly to canvas bottom
     ctx.strokeStyle = '#FFF';
     ctx.lineWidth = 4;
     ctx.shadowColor = '#FFF';
     ctx.shadowBlur = 8;
     ctx.setLineDash([25, 15]);
     ctx.beginPath();
-    ctx.moveTo(this.FIELD_WIDTH / 2, 0);
-    ctx.lineTo(this.FIELD_WIDTH / 2, this.FIELD_HEIGHT);
+    ctx.moveTo(this.fieldWidth / 2, fieldStartY);
+    ctx.lineTo(this.fieldWidth / 2, fieldEndY);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.shadowBlur = 0;
@@ -539,7 +660,7 @@ export class SoccerGame {
     ctx.shadowColor = '#FFF';
     ctx.shadowBlur = 6;
     ctx.beginPath();
-    ctx.arc(this.FIELD_WIDTH / 2, this.FIELD_HEIGHT / 2, 80, 0, Math.PI * 2);
+    ctx.arc(this.fieldWidth / 2, fieldStartY + this.fieldHeight / 2, 80, 0, Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
     
@@ -548,7 +669,7 @@ export class SoccerGame {
     ctx.shadowColor = '#FFF';
     ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.arc(this.FIELD_WIDTH / 2, this.FIELD_HEIGHT / 2, 6, 0, Math.PI * 2);
+    ctx.arc(this.fieldWidth / 2, fieldStartY + this.fieldHeight / 2, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
     
@@ -655,15 +776,56 @@ export class SoccerGame {
     ctx.ellipse(2, this.PLAYER_RADIUS + 2, this.PLAYER_RADIUS * 0.8, this.PLAYER_RADIUS * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Body (circle with team color and gradient)
-    const bodyGradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, this.PLAYER_RADIUS);
-    bodyGradient.addColorStop(0, this.lightenColor(player.color, 50));
-    bodyGradient.addColorStop(0.6, player.color);
-    bodyGradient.addColorStop(1, this.darkenColor(player.color, 20));
-    ctx.fillStyle = bodyGradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
+    // Draw avatar if available, otherwise draw colored circle
+    const avatarImg = player.avatarUrl ? this.avatarImages.get(player.walletAddress) : null;
+    const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
+    const isEmojiAvatar = player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl);
+    
+    if (avatarImg) {
+      // Draw avatar image
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.clip();
+      
+      // Draw team color background behind avatar
+      const bodyGradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, this.PLAYER_RADIUS);
+      bodyGradient.addColorStop(0, this.lightenColor(player.color, 30));
+      bodyGradient.addColorStop(0.7, player.color);
+      bodyGradient.addColorStop(1, this.darkenColor(player.color, 10));
+      ctx.fillStyle = bodyGradient;
+      ctx.fillRect(-this.PLAYER_RADIUS, -this.PLAYER_RADIUS, this.PLAYER_RADIUS * 2, this.PLAYER_RADIUS * 2);
+      
+      // Draw avatar image
+      ctx.drawImage(avatarImg, -this.PLAYER_RADIUS, -this.PLAYER_RADIUS, this.PLAYER_RADIUS * 2, this.PLAYER_RADIUS * 2);
+      ctx.restore();
+    } else if (isEmojiAvatar) {
+      // Draw emoji avatar
+      const bodyGradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, this.PLAYER_RADIUS);
+      bodyGradient.addColorStop(0, this.lightenColor(player.color, 30));
+      bodyGradient.addColorStop(0.7, player.color);
+      bodyGradient.addColorStop(1, this.darkenColor(player.color, 10));
+      ctx.fillStyle = bodyGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw emoji
+      ctx.font = `${this.PLAYER_RADIUS * 1.2}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(player.avatarUrl, 0, 0);
+    } else {
+      // Draw colored circle (fallback)
+      const bodyGradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, this.PLAYER_RADIUS);
+      bodyGradient.addColorStop(0, this.lightenColor(player.color, 50));
+      bodyGradient.addColorStop(0.6, player.color);
+      bodyGradient.addColorStop(1, this.darkenColor(player.color, 20));
+      ctx.fillStyle = bodyGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
     
     // Crown indicator - Gold outline with pulsing glow effect
     if (player.hasCrown) {
@@ -714,28 +876,31 @@ export class SoccerGame {
     ctx.stroke();
     
     // Draw direction indicator (arrow showing which way player is facing)
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath();
-    const arrowSize = 8;
-    if (player.facing === 'right') {
-      ctx.moveTo(arrowSize, 0);
-      ctx.lineTo(-arrowSize, -arrowSize);
-      ctx.lineTo(-arrowSize, arrowSize);
-    } else if (player.facing === 'left') {
-      ctx.moveTo(-arrowSize, 0);
-      ctx.lineTo(arrowSize, -arrowSize);
-      ctx.lineTo(arrowSize, arrowSize);
-    } else if (player.facing === 'up') {
-      ctx.moveTo(0, -arrowSize);
-      ctx.lineTo(-arrowSize, arrowSize);
-      ctx.lineTo(arrowSize, arrowSize);
-    } else {
-      ctx.moveTo(0, arrowSize);
-      ctx.lineTo(-arrowSize, -arrowSize);
-      ctx.lineTo(arrowSize, -arrowSize);
+    // Only show arrow if no avatar (to avoid overlap)
+    if (!avatarImg && !isEmojiAvatar) {
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath();
+      const arrowSize = 8;
+      if (player.facing === 'right') {
+        ctx.moveTo(arrowSize, 0);
+        ctx.lineTo(-arrowSize, -arrowSize);
+        ctx.lineTo(-arrowSize, arrowSize);
+      } else if (player.facing === 'left') {
+        ctx.moveTo(-arrowSize, 0);
+        ctx.lineTo(arrowSize, -arrowSize);
+        ctx.lineTo(arrowSize, arrowSize);
+      } else if (player.facing === 'up') {
+        ctx.moveTo(0, -arrowSize);
+        ctx.lineTo(-arrowSize, arrowSize);
+        ctx.lineTo(arrowSize, arrowSize);
+      } else {
+        ctx.moveTo(0, arrowSize);
+        ctx.lineTo(-arrowSize, -arrowSize);
+        ctx.lineTo(arrowSize, -arrowSize);
+      }
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fill();
     
     // Display name above player (username or wallet address)
     const displayName = player.username || `${player.walletAddress.slice(0, 6)}...${player.walletAddress.slice(-4)}`;
@@ -843,17 +1008,18 @@ export class SoccerGame {
   }
   
   drawUI(ctx: CanvasRenderingContext2D): void {
-    // Score display with modern styling
-    const scoreBgGradient = ctx.createLinearGradient(10, 10, 10, 70);
+    // Score display with modern styling - ALWAYS AT TOP (y=10)
+    const scoreY = 10;
+    const scoreBgGradient = ctx.createLinearGradient(10, scoreY, 10, scoreY + 70);
     scoreBgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
     scoreBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
     ctx.fillStyle = scoreBgGradient;
-    ctx.fillRect(10, 10, 220, 70);
+    ctx.fillRect(10, scoreY, 220, 70);
     
     // Score border
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 2;
-    ctx.strokeRect(10, 10, 220, 70);
+    ctx.strokeRect(10, scoreY, 220, 70);
     
     // Red team score
     ctx.fillStyle = '#FF6B6B';
@@ -861,14 +1027,14 @@ export class SoccerGame {
     ctx.textAlign = 'left';
     ctx.shadowColor = '#FF6B6B';
     ctx.shadowBlur = 10;
-    ctx.fillText(`RED: ${this.redScore}`, 20, 45);
+    ctx.fillText(`RED: ${this.redScore}`, 20, scoreY + 35);
     ctx.shadowBlur = 0;
     
     // Blue team score
     ctx.fillStyle = '#4A90E2';
     ctx.shadowColor = '#4A90E2';
     ctx.shadowBlur = 10;
-    ctx.fillText(`BLUE: ${this.blueScore}`, 20, 75);
+    ctx.fillText(`BLUE: ${this.blueScore}`, 20, scoreY + 65);
     ctx.shadowBlur = 0;
     
     // Timer with modern styling
@@ -877,39 +1043,40 @@ export class SoccerGame {
     const minutes = Math.floor(remaining / 60000);
     const seconds = Math.floor((remaining % 60000) / 1000);
     
-    const timerBgGradient = ctx.createLinearGradient(this.FIELD_WIDTH - 180, 10, this.FIELD_WIDTH - 20, 50);
+    const timerX = this.canvasWidth - 180;
+    const timerBgGradient = ctx.createLinearGradient(timerX, scoreY, this.canvasWidth - 20, scoreY + 40);
     timerBgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
     timerBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
     ctx.fillStyle = timerBgGradient;
-    ctx.fillRect(this.FIELD_WIDTH - 180, 10, 170, 50);
+    ctx.fillRect(timerX, scoreY, 170, 50);
     
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 2;
-    ctx.strokeRect(this.FIELD_WIDTH - 180, 10, 170, 50);
+    ctx.strokeRect(timerX, scoreY, 170, 50);
     
     ctx.fillStyle = '#FFF';
     ctx.font = 'bold 24px Orbitron, Arial';
     ctx.textAlign = 'right';
     ctx.shadowColor = '#FFF';
     ctx.shadowBlur = 8;
-    ctx.fillText(`${minutes}:${seconds.toString().padStart(2, '0')}`, this.FIELD_WIDTH - 20, 40);
+    ctx.fillText(`${minutes}:${seconds.toString().padStart(2, '0')}`, this.canvasWidth - 20, scoreY + 30);
     ctx.shadowBlur = 0;
     
     // Game mode indicator
-    const modeBgGradient = ctx.createLinearGradient(this.FIELD_WIDTH - 180, 60, this.FIELD_WIDTH - 20, 85);
+    const modeBgGradient = ctx.createLinearGradient(timerX, scoreY + 50, this.canvasWidth - 20, scoreY + 80);
     modeBgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
     modeBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
     ctx.fillStyle = modeBgGradient;
-    ctx.fillRect(this.FIELD_WIDTH - 180, 60, 170, 30);
+    ctx.fillRect(timerX, scoreY + 50, 170, 30);
     
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(this.FIELD_WIDTH - 180, 60, 170, 30);
+    ctx.strokeRect(timerX, scoreY + 50, 170, 30);
     
     ctx.fillStyle = '#FFF';
     ctx.font = '600 14px Inter, Arial';
     ctx.textAlign = 'right';
-    ctx.fillText(`First to ${this.maxScore} wins`, this.FIELD_WIDTH - 20, 80);
+    ctx.fillText(`First to ${this.maxScore} wins`, this.canvasWidth - 20, scoreY + 70);
   }
 }
 

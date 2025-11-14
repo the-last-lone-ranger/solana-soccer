@@ -40,15 +40,9 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
   const [equipping, setEquipping] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Voice chat settings
-  const [voiceEnabled, setVoiceEnabled] = useState(() => {
-    const saved = localStorage.getItem(`voice_settings_${walletAddress}`);
-    return saved ? JSON.parse(saved).enabled : false;
-  });
-  const [pushToTalkKey, setPushToTalkKey] = useState(() => {
-    const saved = localStorage.getItem(`voice_settings_${walletAddress}`);
-    return saved ? JSON.parse(saved).pushToTalkKey : 'v';
-  });
+  // Voice chat settings - load from profile
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [pushToTalkKey, setPushToTalkKey] = useState('v');
   const [editingPushToTalkKey, setEditingPushToTalkKey] = useState(false);
   const keyInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +64,17 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
       const data = await apiClient.getProfile();
       setProfile(data);
       setAvatarUrl(data.avatarUrl || '');
+      
+      // Load voice settings from profile
+      if (data.voiceSettings) {
+        setVoiceEnabled(data.voiceSettings.enabled || false);
+        setPushToTalkKey(data.voiceSettings.pushToTalkKey || 'v');
+        // Also sync to localStorage for backward compatibility
+        localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify({
+          enabled: data.voiceSettings.enabled || false,
+          pushToTalkKey: data.voiceSettings.pushToTalkKey || 'v',
+        }));
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load profile');
     } finally {
@@ -79,7 +84,8 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
 
   const loadInventory = async () => {
     try {
-      const data = await apiClient.getPlayerItems();
+      // Pass walletAddress to get items for this specific player
+      const data = await apiClient.getPlayerItems(walletAddress);
       setItems(data.items);
       setEquippedItems(data.equipped);
     } catch (err: any) {
@@ -166,21 +172,45 @@ export function PlayerProfile({ apiClient, walletAddress }: PlayerProfileProps) 
     }
   };
 
-  const saveVoiceSettings = () => {
-    const settings = {
-      enabled: voiceEnabled,
-      pushToTalkKey: pushToTalkKey.toLowerCase(),
-    };
-    localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+  const saveVoiceSettings = async () => {
+    try {
+      await apiClient.updateVoiceSettings(voiceEnabled, pushToTalkKey.toLowerCase());
+      // Also save to localStorage for backward compatibility
+      const settings = {
+        enabled: voiceEnabled,
+        pushToTalkKey: pushToTalkKey.toLowerCase(),
+      };
+      localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+    } catch (err) {
+      console.error('Failed to save voice settings:', err);
+      // Fallback to localStorage if API fails
+      const settings = {
+        enabled: voiceEnabled,
+        pushToTalkKey: pushToTalkKey.toLowerCase(),
+      };
+      localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+    }
   };
 
-  const handleVoiceEnabledChange = (enabled: boolean) => {
+  const handleVoiceEnabledChange = async (enabled: boolean) => {
     setVoiceEnabled(enabled);
-    const settings = {
-      enabled,
-      pushToTalkKey: pushToTalkKey.toLowerCase(),
-    };
-    localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+    try {
+      await apiClient.updateVoiceSettings(enabled, pushToTalkKey.toLowerCase());
+      // Also save to localStorage for backward compatibility
+      const settings = {
+        enabled,
+        pushToTalkKey: pushToTalkKey.toLowerCase(),
+      };
+      localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+    } catch (err) {
+      console.error('Failed to save voice settings:', err);
+      // Fallback to localStorage if API fails
+      const settings = {
+        enabled,
+        pushToTalkKey: pushToTalkKey.toLowerCase(),
+      };
+      localStorage.setItem(`voice_settings_${walletAddress}`, JSON.stringify(settings));
+    }
   };
 
   const handlePushToTalkKeyChange = (key: string) => {

@@ -107,6 +107,18 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   
+  // GET /stats/* routes are public (no auth required)
+  if (req.path.startsWith('/stats/') && req.method === 'GET') {
+    console.log(`[Auth Check] ✅ Skipping auth for public stats route: ${req.path}`);
+    return next();
+  }
+  
+  // GET /players/:walletAddress/equipped-items is public (for inspecting other players)
+  if (req.path.startsWith('/players/') && req.path.endsWith('/equipped-items') && req.method === 'GET') {
+    console.log(`[Auth Check] ✅ Skipping auth for GET /players/*/equipped-items`);
+    return next();
+  }
+  
   // GET /wallet/* routes require auth (user-specific wallet data)
   if (req.path.startsWith('/wallet/') && req.method === 'GET') {
     // Apply auth middleware for wallet routes

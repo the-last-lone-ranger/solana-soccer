@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dbQueries } from '../db/database.js';
 import { requireAuth } from '../middleware/openkit.js';
-import { checkTokenOwnership, TokenGateConfig, verifySolTransfer, getSolBalance } from '../services/solana.js';
+import { checkTokenOwnership, TokenGateConfig, verifySolTransfer, getSolBalance, checkKickItTokenHolder } from '../services/solana.js';
 import { generateItemDrop } from '../services/items.js';
 import { getOrCreateInGameWallet, getInGameWalletAddress, getInGameWalletKeypair } from '../services/wallet.js';
 import { Connection, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
@@ -97,10 +97,67 @@ router.get('/leaderboard', async (req: Request, res: Response) => {
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const users = await dbQueries.getAllUsers();
-    res.json({ users });
+    
+    // Check token holder status for all users (in batches to avoid rate limits)
+    const usersWithTokenStatus = await Promise.all(
+      users.map(async (user) => {
+        try {
+          const isHolder = await checkKickItTokenHolder(user.walletAddress);
+          return { ...user, isKickItTokenHolder: isHolder };
+        } catch (error) {
+          console.error(`Error checking token for ${user.walletAddress}:`, error);
+          return { ...user, isKickItTokenHolder: false };
+        }
+      })
+    );
+    
+    res.json({ users: usersWithTokenStatus });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get total SOL bet across all games (public)
+router.get('/stats/total-sol-bet', async (req: Request, res: Response) => {
+  try {
+    const totalSolBet = await dbQueries.getTotalSolBet();
+    res.json({ totalSolBet });
+  } catch (error) {
+    console.error('Error fetching total SOL bet:', error);
+    res.status(500).json({ error: 'Failed to fetch total SOL bet' });
+  }
+});
+
+// Get player's equipped items (public - for inspecting other players)
+router.get('/players/:walletAddress/equipped-items', async (req: Request, res: Response) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const equipped = await dbQueries.getEquippedItems(walletAddress);
+    const player = await dbQueries.getOrCreatePlayer(walletAddress);
+    const hasCrown = await dbQueries.hasCrown(walletAddress);
+
+    res.json({
+      walletAddress,
+      username: player.username || null,
+      avatarUrl: player.avatar_url || null,
+      equipped: equipped.map(item => ({
+        id: item.id,
+        itemId: item.item_id,
+        itemName: item.item_name,
+        itemType: item.item_type,
+        rarity: item.rarity,
+      })),
+      hasCrown,
+    });
+  } catch (error) {
+    console.error('Error fetching equipped items:', error);
+    res.status(500).json({ error: 'Failed to fetch equipped items' });
   }
 });
 
@@ -117,6 +174,9 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
     const items = await dbQueries.getPlayerItems(user.address);
     const hasCrown = await dbQueries.hasCrown(user.address);
     const isLeader = await dbQueries.isLeader(user.address);
+    
+    // Check if user holds Kicking It ($SOCCER) token
+    const isKickItTokenHolder = await checkKickItTokenHolder(user.address);
 
     res.json({
       walletAddress: user.address,
@@ -141,10 +201,38 @@ router.get('/profile', requireAuth, async (req: Request, res: Response) => {
       })),
       hasCrown,
       isLeader,
+      isKickItTokenHolder,
+      voiceSettings: {
+        enabled: (player.voice_enabled ?? 0) === 1,
+        pushToTalkKey: player.push_to_talk_key || 'v',
+      },
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update voice chat settings (protected)
+router.put('/profile/voice-settings', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.openkitx403User!;
+    const { voiceEnabled, pushToTalkKey } = req.body;
+
+    if (typeof voiceEnabled !== 'boolean') {
+      return res.status(400).json({ error: 'voiceEnabled must be a boolean' });
+    }
+
+    if (!pushToTalkKey || typeof pushToTalkKey !== 'string' || pushToTalkKey.length !== 1) {
+      return res.status(400).json({ error: 'pushToTalkKey must be a single character' });
+    }
+
+    await dbQueries.updateVoiceSettings(user.address, voiceEnabled, pushToTalkKey);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating voice settings:', error);
+    res.status(500).json({ error: 'Failed to update voice settings' });
   }
 });
 
@@ -255,14 +343,30 @@ router.get('/token-check', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// Check if user holds Kicking It ($SOCCER) token (protected)
+router.get('/kick-it-token-check', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.openkitx403User!;
+    const isHolder = await checkKickItTokenHolder(user.address);
+
+    res.json({ isHolder });
+  } catch (error) {
+    console.error('Error checking Kicking It token:', error);
+    res.status(500).json({ error: 'Failed to check Kicking It token' });
+  }
+});
+
 // Generate item drop (protected)
 router.post('/item-drop', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.openkitx403User!;
     const { tokenBalance = 0, nftCount = 0 }: ItemDropRequest = req.body;
 
+    // Check if user holds the Kicking It ($SOCCER) token
+    const hasKickItToken = await checkKickItTokenHolder(user.address);
+
     // Generate item based on token holdings
-    const item = generateItemDrop(tokenBalance, nftCount);
+    const item = generateItemDrop(tokenBalance, nftCount, hasKickItToken);
 
     if (item) {
       // Save item to player's inventory
@@ -293,12 +397,28 @@ router.post('/item-drop', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Get player items (protected)
-router.get('/items', requireAuth, async (req: Request, res: Response) => {
+// Get player items (public - can view any player's items)
+router.get('/items', async (req: Request, res: Response) => {
   try {
-    const user = req.openkitx403User!;
-    const items = await dbQueries.getPlayerItems(user.address);
-    const equipped = await dbQueries.getEquippedItems(user.address);
+    // Get wallet address from query parameter or authenticated user
+    let walletAddress: string | undefined;
+    
+    if (req.query.walletAddress && typeof req.query.walletAddress === 'string') {
+      walletAddress = req.query.walletAddress;
+    } else if (req.openkitx403User) {
+      // If authenticated and no address provided, use authenticated user's address
+      walletAddress = req.openkitx403User.address;
+    } else {
+      // If not authenticated and no address provided, return error
+      return res.status(400).json({ error: 'walletAddress query parameter is required when not authenticated' });
+    }
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    const items = await dbQueries.getPlayerItems(walletAddress);
+    const equipped = await dbQueries.getEquippedItems(walletAddress);
 
     res.json({
       items: items.map(item => ({
@@ -835,6 +955,12 @@ router.post('/matches/:matchId/result', requireAuth, async (req: Request, res: R
       winnerAddress,
       payoutTx || 'no-payout-needed'
     );
+
+    // Update player stats - increment games played for both players
+    await dbQueries.updatePlayerStats(match.creator_address, creatorScore);
+    if (match.opponent_address) {
+      await dbQueries.updatePlayerStats(match.opponent_address, opponentScore);
+    }
 
     // Get player info
     const creator = await dbQueries.getOrCreatePlayer(updatedMatch.creator_address);

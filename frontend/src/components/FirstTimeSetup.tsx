@@ -162,7 +162,7 @@ export function FirstTimeSetup({ apiClient, walletAddress, onComplete }: FirstTi
     <div className="first-time-setup-overlay">
       <div className="first-time-setup-modal">
         <div className="setup-header">
-          <h2>🎮 Welcome to Solana Defender!</h2>
+          <h2>🎮 Welcome to Kicking It!</h2>
           <p>Let's set up your profile to get started</p>
         </div>
 

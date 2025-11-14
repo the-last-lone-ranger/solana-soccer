@@ -116,6 +116,21 @@ async function getTokenBalance(wallet: PublicKey, mint: PublicKey): Promise<numb
   }
 }
 
+// Check if wallet holds the Kicking It ($SOCCER) token
+const KICKING_IT_TOKEN_MINT = '6q75D5TCaEJXSvidqwEDeyog55MKhWV2k5NZQRpzpump';
+
+export async function checkKickItTokenHolder(walletAddress: string): Promise<boolean> {
+  try {
+    const publicKey = new PublicKey(walletAddress);
+    const mintPubkey = new PublicKey(KICKING_IT_TOKEN_MINT);
+    const balance = await getTokenBalance(publicKey, mintPubkey);
+    return balance > 0;
+  } catch (error) {
+    console.error('Error checking Kicking It token holder:', error);
+    return false;
+  }
+}
+
 export async function getTokenHoldings(walletAddress: string): Promise<{ tokenBalance: number; nftCount: number }> {
   try {
     const publicKey = new PublicKey(walletAddress);

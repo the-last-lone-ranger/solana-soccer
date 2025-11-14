@@ -1,6 +1,6 @@
-# Solana Defender - Web3 Gaming Platform
+# Kicking It - Multiplayer Soccer with $SOCCER
 
-A complete full-stack Web3 gaming application featuring a space shooter game with Solana wallet authentication using OpenKitx403.
+A complete full-stack Web3 gaming application featuring multiplayer soccer games with Solana wallet authentication using OpenKitx403.
 
 ## Features
 

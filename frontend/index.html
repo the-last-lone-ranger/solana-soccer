@@ -4,11 +4,41 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Solana Defender - Web3 Gaming</title>
+    <title>Kicking It - Multiplayer Soccer with $SOCCER</title>
     <!-- Google Fonts - Modern Gaming Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Suppress MetaMask provider conflict errors (harmless for Solana apps)
+      // This happens when multiple wallet extensions are installed
+      // We handle this more comprehensively in main.tsx, but this catches early errors
+      (function() {
+        const originalError = console.error;
+        const errorMessages = [
+          'MetaMask encountered an error setting the global Ethereum provider',
+          'Cannot set property ethereum',
+          'which has only a getter'
+        ];
+        
+        console.error = function(...args) {
+          const message = args[0]?.toString() || '';
+          if (errorMessages.some(msg => message.includes(msg))) {
+            return; // Silently ignore MetaMask conflicts
+          }
+          originalError.apply(console, args);
+        };
+
+        // Handle window.ethereum conflicts gracefully
+        window.addEventListener('error', (event) => {
+          if (event.message && errorMessages.some(msg => event.message.includes(msg))) {
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -40,17 +40,26 @@ export class SocketClient {
   }
 
   joinLobby(lobbyId: string): void {
-    if (!this.socket) {
-      throw new Error('Socket not connected');
+    if (!this.socket || !this.socket.connected) {
+      console.warn('[Socket] Cannot join lobby - socket not connected');
+      return;
     }
     this.socket.emit('lobby:join', { lobbyId });
   }
 
   leaveLobby(lobbyId: string): void {
+    if (!this.socket || !this.socket.connected) {
+      // Silently fail during cleanup - socket might already be disconnected
+      return;
+    }
+    this.socket.emit('lobby:leave', { lobbyId });
+  }
+
+  requestLobbyState(lobbyId: string): void {
     if (!this.socket) {
       throw new Error('Socket not connected');
     }
-    this.socket.emit('lobby:leave', { lobbyId });
+    this.socket.emit('lobby:request_state', { lobbyId });
   }
 
   // Lobby event listeners
@@ -110,6 +119,37 @@ export class SocketClient {
   onVoiceState(callback: (data: { walletAddress: string; isSpeaking: boolean; timestamp: number }) => void): void {
     if (!this.socket) return;
     this.socket.on('game:voice_state', callback);
+  }
+
+  // WebRTC signaling for voice chat
+  sendWebRTCOffer(lobbyId: string, targetAddress: string, offer: RTCSessionDescriptionInit): void {
+    if (!this.socket) return;
+    this.socket.emit('webrtc:offer', { lobbyId, targetAddress, offer });
+  }
+
+  sendWebRTCAnswer(lobbyId: string, targetAddress: string, answer: RTCSessionDescriptionInit): void {
+    if (!this.socket) return;
+    this.socket.emit('webrtc:answer', { lobbyId, targetAddress, answer });
+  }
+
+  sendWebRTCIceCandidate(lobbyId: string, targetAddress: string, candidate: RTCIceCandidateInit): void {
+    if (!this.socket) return;
+    this.socket.emit('webrtc:ice', { lobbyId, targetAddress, candidate });
+  }
+
+  onWebRTCOffer(callback: (data: { fromAddress: string; offer: RTCSessionDescriptionInit }) => void): void {
+    if (!this.socket) return;
+    this.socket.on('webrtc:offer', callback);
+  }
+
+  onWebRTCAnswer(callback: (data: { fromAddress: string; answer: RTCSessionDescriptionInit }) => void): void {
+    if (!this.socket) return;
+    this.socket.on('webrtc:answer', callback);
+  }
+
+  onWebRTCIceCandidate(callback: (data: { fromAddress: string; candidate: RTCIceCandidateInit }) => void): void {
+    if (!this.socket) return;
+    this.socket.on('webrtc:ice', callback);
   }
 
   // Remove listeners

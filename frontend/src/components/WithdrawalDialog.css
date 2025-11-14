@@ -12,6 +12,8 @@
   justify-content: center;
   z-index: 10000;
   animation: fadeIn 0.2s ease-out;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 @keyframes fadeIn {
@@ -28,11 +30,15 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
-  width: 90%;
+  width: 100%;
   max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slideUp 0.3s ease-out;
+  margin: auto;
+  position: relative;
 }
 
 @keyframes slideUp {
@@ -52,6 +58,11 @@
   align-items: center;
   padding: 1.5rem 2rem;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 1;
 }
 
 .withdrawal-dialog-header h2 {
@@ -86,6 +97,9 @@
 
 .withdrawal-dialog-content {
   padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .balance-info {
@@ -247,14 +261,20 @@
 }
 
 @media (max-width: 768px) {
+  .withdrawal-dialog-overlay {
+    padding: 0.5rem;
+  }
+
   .withdrawal-dialog {
-    width: 95%;
-    margin: 1rem;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 1rem);
+    margin: 0;
   }
 
   .withdrawal-dialog-header,
   .withdrawal-dialog-content {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
 }
 

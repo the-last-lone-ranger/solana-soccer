@@ -115,6 +115,36 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+.round-winners {
+  margin: 0.5rem 0;
+}
+
+.winner-avatars {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.winner-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  object-fit: cover;
+  background: var(--bg-tertiary);
+}
+
+.winner-more {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
 .round-stats {
   display: flex;
   gap: 0.5rem;

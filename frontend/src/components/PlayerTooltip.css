@@ -1,0 +1,111 @@
+/* Player Tooltip - Hover to see equipped items */
+
+.player-tooltip-trigger {
+  position: relative;
+  display: inline-block;
+}
+
+.player-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 0.75rem;
+  min-width: 200px;
+  max-width: 300px;
+  pointer-events: none;
+  animation: fadeInTooltip 0.2s ease-out;
+}
+
+@keyframes fadeInTooltip {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tooltip-username {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.crown-icon {
+  font-size: 1rem;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+}
+
+.tooltip-content {
+  min-height: 40px;
+}
+
+.tooltip-loading,
+.tooltip-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  padding: 0.5rem 0;
+  font-style: italic;
+}
+
+.tooltip-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tooltip-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid;
+  transition: all var(--transition-base);
+}
+
+.tooltip-item:hover {
+  background: var(--bg-hover);
+  transform: translateX(2px);
+}
+
+.item-name {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.item-rarity {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mobile - hide tooltip on touch devices or make it simpler */
+@media (max-width: 768px) {
+  .player-tooltip {
+    display: none; /* Hide on mobile to avoid touch issues */
+  }
+}
+

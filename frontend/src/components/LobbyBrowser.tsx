@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext.js';
 import { ApiClient } from '../services/api.js';
 import { SocketClient } from '../services/socketClient.js';
 import { LobbyWaitingRoom } from './LobbyWaitingRoom.js';
+import { PlayerTooltip } from './PlayerTooltip.js';
 import type { Lobby, LobbyStatus } from '@solana-defender/shared';
 import { BetAmount } from '@solana-defender/shared';
 import './LobbyBrowser.css';
@@ -14,6 +16,7 @@ interface LobbyBrowserProps {
 
 export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
   const { address } = useWallet();
+  const navigate = useNavigate();
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [selectedBetAmount, setSelectedBetAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,9 +41,14 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     return () => clearInterval(interval);
   }, [selectedBetAmount]);
 
-  // Connect socket when address is available
+  // Connect socket when address is available (Solana wallet) or Google auth is present
   useEffect(() => {
-    if (address) {
+    // Check for Google auth or Solana wallet
+    const googleToken = localStorage.getItem('google_auth_token');
+    const googleAddress = localStorage.getItem('google_auth_address');
+    const isGoogleAuth = googleToken && googleAddress;
+    
+    if (address || isGoogleAuth) {
       const token = apiClient.getJwtToken();
       if (token) {
         socketClient.connect(token);
@@ -63,13 +71,41 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
   useEffect(() => {
     socketClient.onLobbyState((data) => {
       const updatedLobby = data.lobby;
-      setLobbies((prev) =>
-        prev.map((l) => (l.id === updatedLobby.id ? updatedLobby : l))
-      );
+      console.log('[LobbyBrowser] Received lobby state update:', updatedLobby.id);
+      console.log('[LobbyBrowser] Players in socket update:', updatedLobby.players?.length || 0, updatedLobby.players?.map(p => p.walletAddress) || []);
+      
+      setLobbies((prev) => {
+        const existingLobbyIndex = prev.findIndex(l => l.id === updatedLobby.id);
+        
+        if (existingLobbyIndex >= 0) {
+          // Update existing lobby - ALWAYS use players from socket update
+          const mergedLobby = {
+            ...updatedLobby,
+            players: updatedLobby.players && Array.isArray(updatedLobby.players) 
+              ? updatedLobby.players 
+              : (prev[existingLobbyIndex].players || []),
+          };
+          console.log('[LobbyBrowser] Socket update for existing lobby:', mergedLobby.id, 'player count:', mergedLobby.players.length, 'players:', mergedLobby.players.map(p => p.walletAddress));
+          
+          const newLobbies = [...prev];
+          newLobbies[existingLobbyIndex] = mergedLobby;
+          return newLobbies;
+        } else {
+          // Lobby doesn't exist yet - add it (might be a new lobby)
+          console.log('[LobbyBrowser] Socket update for new lobby:', updatedLobby.id, 'player count:', updatedLobby.players?.length || 0);
+          return [...prev, updatedLobby];
+        }
+      });
       
       // Update joined lobby if it's the one we're in
       if (joinedLobbyId === updatedLobby.id) {
-        setJoinedLobby(updatedLobby);
+        const hasPlayersInUpdate = updatedLobby.players && Array.isArray(updatedLobby.players) && updatedLobby.players.length > 0;
+        setJoinedLobby({
+          ...updatedLobby,
+          players: hasPlayersInUpdate
+            ? updatedLobby.players
+            : (joinedLobby?.players || []),
+        });
       }
     });
 
@@ -116,7 +152,59 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
   const loadLobbies = async () => {
     try {
       const result = await apiClient.getLobbies(selectedBetAmount ?? undefined);
-      setLobbies(result.lobbies);
+      console.log('[LobbyBrowser] Loaded lobbies from API:', result.lobbies.map(l => ({ 
+        id: l.id, 
+        playerCount: l.players?.length || 0,
+        players: l.players?.map(p => p.walletAddress) || []
+      })));
+      
+      // Merge with existing lobbies to preserve socket updates
+      setLobbies((prevLobbies) => {
+        // Create a map of API lobbies by ID for quick lookup
+        const apiLobbiesMap = new Map(result.lobbies.map(l => [l.id, l]));
+        
+        // Start with API lobbies, but merge socket-updated player data
+        const mergedLobbies = result.lobbies.map((apiLobby) => {
+          // Find existing lobby from previous state (might have socket updates)
+          const existingLobby = prevLobbies.find(l => l.id === apiLobby.id);
+          
+          // ALWAYS prefer socket-updated players if they exist (they're real-time and more accurate)
+          // Socket updates are the source of truth for player counts
+          if (existingLobby && existingLobby.players && Array.isArray(existingLobby.players)) {
+            const socketPlayerCount = existingLobby.players.length;
+            const apiPlayerCount = apiLobby.players?.length || 0;
+            
+            // Only use API data if socket has 0 AND API has >0 (socket might be stale/empty)
+            // Otherwise always trust socket updates (they're real-time)
+            if (socketPlayerCount === 0 && apiPlayerCount > 0) {
+              console.log('[LobbyBrowser] Socket has 0 but API has players - using API data for lobby:', apiLobby.id, 'API count:', apiPlayerCount);
+              return apiLobby;
+            }
+            
+            console.log('[LobbyBrowser] Using socket-updated players for lobby:', apiLobby.id, 'socket count:', socketPlayerCount, 'API count:', apiPlayerCount);
+            
+            // Use socket data (real-time updates)
+            return {
+              ...apiLobby,
+              players: existingLobby.players, // Use players from socket updates (real-time)
+            };
+          }
+          
+          // Use API data (no socket updates available)
+          console.log('[LobbyBrowser] Using API data for lobby:', apiLobby.id, 'player count:', apiLobby.players?.length || 0);
+          return apiLobby;
+        });
+        
+        // Add any lobbies from socket state that aren't in API response (shouldn't happen, but be safe)
+        prevLobbies.forEach((socketLobby) => {
+          if (!apiLobbiesMap.has(socketLobby.id) && socketLobby.players && socketLobby.players.length > 0) {
+            console.log('[LobbyBrowser] Adding socket-only lobby:', socketLobby.id);
+            mergedLobbies.push(socketLobby);
+          }
+        });
+        
+        return mergedLobbies;
+      });
     } catch (err: any) {
       console.error('Failed to load lobbies:', err);
       setError(err.message || 'Failed to load lobbies');
@@ -143,6 +231,8 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
       setJoinedLobby(result.lobby);
       socketClient.joinLobby(result.lobby.id);
       await loadLobbies();
+      // Navigate to the waiting room page
+      navigate(`/lobby/${result.lobby.id}`);
     } catch (err: any) {
       console.error('Failed to create lobby:', err);
       setError(err.message || 'Failed to create lobby');
@@ -169,14 +259,27 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
       const result = await apiClient.joinLobby(lobbyId);
       setJoinedLobbyId(lobbyId);
       setJoinedLobby(result.lobby);
+      // Wait a bit for the database to be updated before joining socket
+      await new Promise(resolve => setTimeout(resolve, 100));
       socketClient.joinLobby(lobbyId);
+      // Request lobby state after socket join to ensure we have the latest data
+      setTimeout(() => {
+        socketClient.requestLobbyState(lobbyId);
+      }, 200);
       await loadLobbies();
+      // Navigate to the waiting room page
+      navigate(`/lobby/${lobbyId}`);
     } catch (err: any) {
       console.error('Failed to join lobby:', err);
       setError(err.message || 'Failed to join lobby');
     } finally {
       setLoading(false);
     }
+  };
+
+  const spectateLobby = (lobbyId: string) => {
+    // Navigate to spectate route - no need to join as player
+    navigate(`/spectate/${lobbyId}`);
   };
 
   const leaveLobby = async (lobbyId: string) => {
@@ -207,18 +310,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
     return `${amount} SOL`;
   };
 
-  // Show waiting room if joined a lobby
-  if (joinedLobby) {
-    return (
-      <LobbyWaitingRoom
-        lobby={joinedLobby}
-        socketClient={socketClient}
-        onGameStart={() => {
-          onLobbyStart(joinedLobby, socketClient);
-        }}
-      />
-    );
-  }
+  // Don't show waiting room here - it's handled by the route
 
   return (
     <div className="lobby-browser">
@@ -294,7 +386,8 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
             const countdown = countdowns.get(lobby.id) ?? lobby.countdownSeconds;
             const isJoined = joinedLobbyId === lobby.id;
             const canJoin = lobby.status === 'waiting' || lobby.status === 'starting';
-            const isFull = lobby.players.length >= (lobby.maxPlayers ?? 50);
+            const playerCount = lobby.players?.length || 0;
+            const isFull = playerCount >= (lobby.maxPlayers ?? 50);
 
             return (
               <div
@@ -308,7 +401,7 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                   </div>
                   <div className="lobby-players">
                     <span>
-                      {lobby.players.length} / {lobby.maxPlayers ?? 50} players
+                      {lobby.players?.length || 0} / {lobby.maxPlayers ?? 50} players
                     </span>
                   </div>
                   {countdown !== undefined && countdown !== null && (
@@ -327,18 +420,24 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                     const EMOJI_AVATARS = ['🚀', '👾', '🎮', '⚡', '🔥', '💎', '👑', '🦄', '🐉', '🌟', '🎯', '💫'];
                     
                     return (
-                      <div key={player.walletAddress} className="player-tag">
-                        <div className="player-avatar-small">
-                          {player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl) ? (
-                            <span className="avatar-emoji-tiny">{player.avatarUrl}</span>
-                          ) : player.avatarUrl ? (
-                            <img src={player.avatarUrl} alt={displayName} className="avatar-image-tiny" />
-                          ) : (
-                            <div className="avatar-initials-tiny">{avatar}</div>
-                          )}
+                      <PlayerTooltip
+                        key={player.walletAddress}
+                        walletAddress={player.walletAddress}
+                        apiClient={apiClient}
+                      >
+                        <div className="player-tag">
+                          <div className="player-avatar-small">
+                            {player.avatarUrl && EMOJI_AVATARS.includes(player.avatarUrl) ? (
+                              <span className="avatar-emoji-tiny">{player.avatarUrl}</span>
+                            ) : player.avatarUrl ? (
+                              <img src={player.avatarUrl} alt={displayName} className="avatar-image-tiny" />
+                            ) : (
+                              <div className="avatar-initials-tiny">{avatar}</div>
+                            )}
+                          </div>
+                          <span className="player-name-small">{displayName}</span>
                         </div>
-                        <span className="player-name-small">{displayName}</span>
-                      </div>
+                      </PlayerTooltip>
                     );
                   })}
                 </div>
@@ -352,19 +451,28 @@ export function LobbyBrowser({ apiClient, onLobbyStart }: LobbyBrowserProps) {
                       Leave
                     </button>
                   ) : (
-                    <button
-                      onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
-                      disabled={
-                        loading ||
-                        !canJoin ||
-                        isFull ||
-                        !address ||
-                        (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
-                      }
-                      className="join-btn"
-                    >
-                      {isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => joinLobby(lobby.id, lobby.betAmountSol)}
+                        disabled={
+                          loading ||
+                          !canJoin ||
+                          isFull ||
+                          !address ||
+                          (lobby.betAmountSol > 0 && walletBalance < lobby.betAmountSol)
+                        }
+                        className="join-btn"
+                      >
+                        {isFull ? 'Full' : canJoin ? 'Join' : 'Closed'}
+                      </button>
+                      <button
+                        className="spectate-btn"
+                        onClick={() => spectateLobby(lobby.id)}
+                        title="Watch this lobby without joining"
+                      >
+                        👁️ Spectate
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

@@ -135,6 +135,23 @@ async function initializeSchema() {
     // Column already exists, ignore
   }
 
+  // Add voice chat settings columns
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN voice_enabled INTEGER DEFAULT 0;
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  try {
+    await db.execute(`
+      ALTER TABLE players ADD COLUMN push_to_talk_key TEXT DEFAULT 'v';
+    `);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Create index for in-game wallet lookups
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_players_in_game_wallet ON players(in_game_wallet_address);
@@ -322,6 +339,8 @@ export interface PlayerRow {
   updated_at: string | null;
   in_game_wallet_address: string | null;
   encrypted_private_key: string | null;
+  voice_enabled: number | null;
+  push_to_talk_key: string | null;
 }
 
 export interface InGameWalletRow {
@@ -396,6 +415,8 @@ export const dbQueries = {
         updated_at: row.updated_at as string | null,
         in_game_wallet_address: row.in_game_wallet_address as string | null,
         encrypted_private_key: row.encrypted_private_key as string | null,
+        voice_enabled: (row.voice_enabled as number | null) ?? null,
+        push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
       };
     }
 
@@ -418,6 +439,8 @@ export const dbQueries = {
       updated_at: row.updated_at as string | null,
       in_game_wallet_address: row.in_game_wallet_address as string | null,
       encrypted_private_key: row.encrypted_private_key as string | null,
+      voice_enabled: (row.voice_enabled as number | null) ?? null,
+      push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
     };
   },
 
@@ -503,6 +526,13 @@ export const dbQueries = {
         args,
       });
     }
+  },
+
+  updateVoiceSettings: async (walletAddress: string, voiceEnabled: boolean, pushToTalkKey: string) => {
+    await db.execute({
+      sql: 'UPDATE players SET voice_enabled = ?, push_to_talk_key = ?, updated_at = CURRENT_TIMESTAMP WHERE wallet_address = ?',
+      args: [voiceEnabled ? 1 : 0, pushToTalkKey.toLowerCase(), walletAddress],
+    });
   },
 
   updatePlayerUsername: async (walletAddress: string, username: string) => {
@@ -1062,13 +1092,30 @@ export const dbQueries = {
   },
 
   joinLobby: async (lobbyId: string, walletAddress: string): Promise<void> => {
-    await db.execute({
+    console.log(`[DB] Attempting to join lobby ${lobbyId} for player ${walletAddress}`);
+    const result = await db.execute({
       sql: `
         INSERT OR IGNORE INTO lobby_players (lobby_id, wallet_address)
         VALUES (?, ?)
       `,
       args: [lobbyId, walletAddress],
     });
+    
+    // Check if the insert actually happened (INSERT OR IGNORE returns 0 rows if already exists)
+    // For Turso/libSQL, we need to check the result
+    console.log(`[DB] Join lobby result:`, result);
+    
+    // Verify the player was actually added
+    const verifyResult = await db.execute({
+      sql: 'SELECT COUNT(*) as count FROM lobby_players WHERE lobby_id = ? AND wallet_address = ?',
+      args: [lobbyId, walletAddress],
+    });
+    const count = verifyResult.rows[0]?.count as number || 0;
+    console.log(`[DB] Verification: Player ${walletAddress} in lobby ${lobbyId}: ${count > 0 ? 'YES' : 'NO'}`);
+    
+    if (count === 0) {
+      console.error(`[DB] ERROR: Player ${walletAddress} was NOT added to lobby ${lobbyId} despite INSERT attempt!`);
+    }
   },
 
   leaveLobby: async (lobbyId: string, walletAddress: string): Promise<void> => {
@@ -1197,14 +1244,63 @@ export const dbQueries = {
       args: [limit],
     });
 
-    return result.rows.map((row) => ({
-      lobbyId: row.lobby_id as string,
-      betAmountSol: row.bet_amount_sol as number,
-      completedAt: row.completed_at as string,
-      teams: (row.teams as string)?.split(',') || [],
-      winnersCount: row.winners_count as number,
-      playerCount: row.player_count as number,
-    }));
+    // For each round, get top 3 winner avatars
+    const roundsWithWinners = await Promise.all(
+      result.rows.map(async (row) => {
+        const lobbyId = row.lobby_id as string;
+        
+        // Get winning team (team with most winners)
+        const teamStats = await db.execute({
+          sql: `
+            SELECT 
+              lr.team,
+              COUNT(*) as winner_count
+            FROM lobby_results lr
+            WHERE lr.lobby_id = ? AND lr.won = 1
+            GROUP BY lr.team
+            ORDER BY winner_count DESC
+            LIMIT 1
+          `,
+          args: [lobbyId],
+        });
+
+        const winningTeam = teamStats.rows[0]?.team as string | null;
+
+        // Get top 3 winners from winning team (by score)
+        let winnerAvatars: string[] = [];
+        if (winningTeam) {
+          const winners = await db.execute({
+            sql: `
+              SELECT 
+                p.avatar_url
+              FROM lobby_results lr
+              JOIN players p ON lr.wallet_address = p.wallet_address
+              WHERE lr.lobby_id = ? AND lr.team = ? AND lr.won = 1
+              ORDER BY lr.final_score DESC
+              LIMIT 3
+            `,
+            args: [lobbyId, winningTeam],
+          });
+
+          winnerAvatars = winners.rows
+            .map((w) => w.avatar_url as string | null)
+            .filter((url): url is string => url !== null);
+        }
+
+        return {
+          lobbyId: lobbyId,
+          betAmountSol: row.bet_amount_sol as number,
+          completedAt: row.completed_at as string,
+          teams: (row.teams as string)?.split(',') || [],
+          winnersCount: row.winners_count as number,
+          playerCount: row.player_count as number,
+          winnerAvatars: winnerAvatars.slice(0, 3), // Top 3 avatars
+          winningTeam: winningTeam,
+        };
+      })
+    );
+
+    return roundsWithWinners;
   },
 
   getAllUsers: async (): Promise<any[]> => {
@@ -1280,6 +1376,35 @@ export const dbQueries = {
       totalSolWon: row.total_sol_won as number,
       totalScore: row.total_score as number,
     }));
+  },
+
+  getTotalSolBet: async (): Promise<number> => {
+    // Calculate total SOL bet from:
+    // 1. All completed lobbies (betAmountSol * number of players)
+    // 2. All completed matches (betAmountSol * 2 for each match)
+    const result = await db.execute({
+      sql: `
+        SELECT 
+          COALESCE(
+            (SELECT SUM(l.bet_amount_sol * (
+              SELECT COUNT(*) FROM lobby_players lp WHERE lp.lobby_id = l.id
+            ))
+             FROM lobbies l
+             WHERE l.status = 'completed' AND l.bet_amount_sol > 0),
+            0
+          ) +
+          COALESCE(
+            (SELECT SUM(bet_amount_sol * 2)
+             FROM matches
+             WHERE status = 'completed' AND bet_amount_sol > 0),
+            0
+          ) as total_sol_bet
+      `,
+      args: [],
+    });
+
+    const total = result.rows[0]?.total_sol_bet as number || 0;
+    return total;
   },
 };
 

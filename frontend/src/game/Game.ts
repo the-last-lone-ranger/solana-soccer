@@ -628,7 +628,7 @@ export class Game {
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '48px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('SOLANA DEFENDER', this.canvas.width / 2, this.canvas.height / 2 - 50);
+    this.ctx.fillText('KICKING IT', this.canvas.width / 2, this.canvas.height / 2 - 50);
     
     this.ctx.font = '24px Arial';
     this.ctx.fillText('Press SPACE to Start', this.canvas.width / 2, this.canvas.height / 2 + 50);

@@ -109,6 +109,41 @@ body {
   min-width: 0;
 }
 
+.total-sol-bet-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: clamp(0.8125rem, 1.5vw, 0.9375rem);
+  color: var(--text-primary);
+  margin: 0 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.total-sol-bet-counter:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.counter-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.counter-value {
+  color: var(--accent-color);
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
 .app-header .emoji {
   font-size: 1.5rem;
   flex-shrink: 0;
@@ -207,8 +242,10 @@ body {
   align-items: start;
 }
 
-/* When showing profile, use full width */
-.app-content:has(.profile-page) {
+/* When showing profile or lobby waiting room, use full width */
+.app-content:has(.profile-page),
+.app-content:has(.lobby-waiting-room),
+.app-content:has(.soccer-game-container) {
   grid-template-columns: 1fr;
   padding: 0;
   max-width: 100%;
@@ -461,6 +498,163 @@ body {
   transform: translateX(4px);
 }
 
+/* Token Benefits Banner */
+.token-benefits-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+  }
+}
+
+.token-benefits-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.token-benefits-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.token-benefits-text {
+  flex: 1;
+}
+
+.token-benefits-title {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 900;
+  color: #10b981;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.token-benefits-subtitle {
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.token-benefits-subtitle strong {
+  color: #10b981;
+  font-weight: 800;
+}
+
+.token-contract-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.contract-address {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.contract-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.contract-code {
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-size: 0.875rem;
+  background: var(--bg-tertiary);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 200px;
+  word-break: break-all;
+}
+
+.contract-copy-btn,
+.contract-chart-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.contract-copy-btn:hover,
+.contract-chart-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.contract-chart-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-color: #10b981;
+}
+
+.contract-chart-btn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Creator Rewards Banner */
+.creator-rewards-banner {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%);
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.creator-rewards-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.creator-rewards-text {
+  flex: 1;
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.creator-rewards-text strong {
+  color: #8b5cf6;
+  font-weight: 800;
+  font-size: 1.1em;
+}
+
 /* Info Badge */
 .game-info {
   margin: 1rem 0;
@@ -530,6 +724,13 @@ body {
     padding: 1rem;
   }
 
+  .total-sol-bet-counter {
+    margin: 0;
+    width: 100%;
+    justify-content: center;
+    order: 2;
+  }
+
   .app-header-content {
     width: 100%;
   }
@@ -565,6 +766,19 @@ body {
 
   .app-header .emoji {
     font-size: 1.25rem;
+  }
+
+  .total-sol-bet-counter {
+    padding: 0.4375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .counter-label {
+    font-size: 0.6875rem;
+  }
+
+  .counter-value {
+    font-size: 0.8125rem;
   }
 
   .header-actions button {

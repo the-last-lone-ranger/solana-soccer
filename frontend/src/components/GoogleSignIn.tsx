@@ -40,9 +40,18 @@ export function GoogleSignIn() {
   // Handle callback from Google OAuth
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
     const token = urlParams.get('token');
     const type = urlParams.get('type');
     const error = urlParams.get('error');
+
+    // If Google redirected here with a code (wrong redirect URI configured)
+    if (code && !token) {
+      console.log('[Google OAuth] Received code in frontend, forwarding to backend...');
+      // Forward the code to the backend callback endpoint
+      window.location.href = `${API_BASE_URL}/api/auth/google/callback?code=${code}`;
+      return;
+    }
 
     if (error) {
       setError(decodeURIComponent(error));
@@ -60,16 +69,18 @@ export function GoogleSignIn() {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const googleAddress = payload.address;
         
-        // Update wallet context to reflect Google auth
-        // We'll need to update the WalletContext to support this
-        // For now, just store the token and reload
-        window.location.href = '/';
+        // Store the address
+        localStorage.setItem('google_auth_address', googleAddress);
+        
+        // Clean up URL first
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Redirect to profile page after successful login
+        window.location.href = '/profile';
       } catch (err) {
         console.error('Failed to parse token:', err);
+        setError('Failed to process authentication token');
       }
-      
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 

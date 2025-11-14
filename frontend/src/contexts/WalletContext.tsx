@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { OpenKit403Client } from '@openkitx403/client';
 
-export type WalletProvider = 'phantom' | 'backpack' | 'solflare';
+export type WalletProvider = 'phantom' | 'backpack' | 'solflare' | 'google';
 
 export interface WalletState {
   connected: boolean;
@@ -40,9 +40,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     authenticated: false,
   });
 
-  // Check if wallet is already connected on mount
+  // Check if wallet is already connected on mount (Solana wallet or Google auth)
   useEffect(() => {
     const checkConnection = async () => {
+      // First check for Google auth
+      const googleToken = localStorage.getItem('google_auth_token');
+      const googleAddress = localStorage.getItem('google_auth_address');
+      
+      if (googleToken && googleAddress) {
+        console.log('[WalletContext] ✅ Found Google auth token, setting user as connected');
+        setState({
+          connected: true,
+          address: googleAddress,
+          provider: 'google',
+          authenticating: false,
+          authenticated: true, // Google users are pre-authenticated with JWT
+        });
+        return;
+      }
+      
+      // Then check for Solana wallet
       try {
         const address = await client.getAddress();
         if (address) {
@@ -95,6 +112,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [client]);
 
   const disconnect = useCallback(() => {
+    // Clear Google auth if present
+    localStorage.removeItem('google_auth_token');
+    localStorage.removeItem('google_auth_address');
+    
     client.disconnect();
     // OpenKit403Client handles token cleanup internally on disconnect
     setState({

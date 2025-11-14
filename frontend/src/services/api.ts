@@ -94,10 +94,14 @@ export class ApiClient {
       return await this.pendingAuthRequests.get(requestKey)!;
     }
     
-    // Verify wallet is connected
-    const walletAddress = await this.client.getAddress();
-    if (!walletAddress) {
-      throw new Error('Wallet not connected - please connect your wallet first');
+    // Check for Google auth first - if present, skip wallet check
+    const googleToken = localStorage.getItem('google_auth_token');
+    if (!googleToken) {
+      // Verify wallet is connected (only for Solana wallet auth)
+      const walletAddress = await this.client.getAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not connected - please connect your wallet first');
+      }
     }
     
     // Create the request promise and store it BEFORE executing
@@ -117,7 +121,42 @@ export class ApiClient {
     url: string,
     options: RequestInit = {}
   ): Promise<Response> {
-    // Verify wallet is connected
+    // Check for Google auth token first
+    const googleToken = localStorage.getItem('google_auth_token');
+    if (googleToken) {
+      // Use Google JWT token directly
+      const headers: Record<string, string> = {};
+      if (options.headers) {
+        if (options.headers instanceof Headers) {
+          options.headers.forEach((value, key) => {
+            headers[key] = value;
+          });
+        } else if (Array.isArray(options.headers)) {
+          options.headers.forEach(([key, value]) => {
+            if (value) headers[key] = String(value);
+          });
+        } else {
+          Object.entries(options.headers).forEach(([key, value]) => {
+            if (value) headers[key] = String(value);
+          });
+        }
+      }
+      
+      headers['Authorization'] = `Bearer ${googleToken}`;
+      if (!headers['Content-Type'] && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+        headers['Content-Type'] = 'application/json';
+      }
+      
+      console.log(`[ApiClient] Using Google JWT token for ${options.method || 'GET'} ${url}`);
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
+      
+      return response;
+    }
+    
+    // Verify wallet is connected (for Solana wallet auth)
     const walletAddress = await this.client.getAddress();
     if (!walletAddress) {
       throw new Error('Wallet not connected - please connect your wallet first');
@@ -444,6 +483,38 @@ export class ApiClient {
     return response.json();
   }
 
+  async getTotalSolBet(): Promise<{ totalSolBet: number }> {
+    const response = await fetch(`${API_BASE_URL}/api/stats/total-sol-bet`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch total SOL bet');
+    }
+    
+    return await response.json();
+  }
+
+  async getPlayerEquippedItems(walletAddress: string): Promise<{
+    walletAddress: string;
+    username: string | null;
+    avatarUrl: string | null;
+    equipped: Array<{
+      id: number;
+      itemId: string;
+      itemName: string;
+      itemType: string;
+      rarity: string;
+    }>;
+    hasCrown: boolean;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/api/players/${walletAddress}/equipped-items`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch equipped items');
+    }
+    
+    return await response.json();
+  }
+
   async getProfile(): Promise<any> {
     const response = await this.authenticatedFetch('/api/profile');
     
@@ -503,8 +574,31 @@ export class ApiClient {
     return response.json();
   }
 
-  async getPlayerItems(): Promise<{ items: any[]; equipped: any[] }> {
-    const response = await this.authenticatedFetch('/api/items');
+  async updateVoiceSettings(voiceEnabled: boolean, pushToTalkKey: string): Promise<{ success: boolean }> {
+    const response = await this.authenticatedFetch('/api/profile/voice-settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ voiceEnabled, pushToTalkKey }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update voice settings');
+    }
+
+    return await response.json();
+  }
+
+  async getPlayerItems(walletAddress?: string): Promise<{ items: any[]; equipped: any[] }> {
+    // Build URL with optional walletAddress query parameter
+    let url = `${API_BASE_URL}/api/items`;
+    if (walletAddress) {
+      url += `?walletAddress=${encodeURIComponent(walletAddress)}`;
+    }
+    
+    // Use regular fetch (not authenticatedFetch) since this endpoint is public
+    const response = await fetch(url);
     
     if (!response.ok) {
       throw new Error('Failed to fetch items');
@@ -855,8 +949,16 @@ export class ApiClient {
 
   /**
    * Get the current JWT token from cache (for Socket.IO authentication)
+   * Checks both Solana wallet auth cache and Google auth localStorage
    */
   getJwtToken(): string | null {
+    // First check for Google auth token
+    const googleToken = localStorage.getItem('google_auth_token');
+    if (googleToken) {
+      return googleToken;
+    }
+    
+    // Then check Solana wallet auth cache
     const cached = this.authCache.get('JWT_TOKEN');
     if (cached && Date.now() < cached.expiresAt) {
       // Extract token from "Bearer <token>" format

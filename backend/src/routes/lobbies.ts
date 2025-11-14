@@ -39,6 +39,7 @@ router.get('/lobbies', async (req: Request, res: Response) => {
     const lobbiesWithPlayers = await Promise.all(
       lobbies.map(async (lobby) => {
         const players = await dbQueries.getLobbyPlayers(lobby.id);
+        console.log(`[Lobbies API] Lobby ${lobby.id} has ${players.length} players:`, players.map(p => p.walletAddress));
         return {
           id: lobby.id,
           betAmountSol: lobby.betAmountSol,
@@ -159,6 +160,7 @@ router.post('/lobbies/:lobbyId/join', requireAuth, async (req: Request, res: Res
   try {
     const user = req.openkitx403User!;
     const { lobbyId } = req.params;
+    console.log(`[Lobbies API] POST /lobbies/${lobbyId}/join - User: ${user.address}`);
 
     const lobby = await dbQueries.getLobby(lobbyId);
     if (!lobby) {
@@ -195,13 +197,16 @@ router.post('/lobbies/:lobbyId/join', requireAuth, async (req: Request, res: Res
     }
 
     // Join lobby
+    console.log(`[Lobbies API] Calling lobbyManager.joinLobby(${lobbyId}, ${user.address})`);
     const joined = await lobbyManager.joinLobby(lobbyId, user.address);
     if (!joined) {
+      console.log(`[Lobbies API] Failed to join lobby ${lobbyId} - may be full or already joined`);
       return res.status(400).json({ error: 'Failed to join lobby (may be full)' });
     }
 
     // Get updated lobby with players
     const updatedLobby = await lobbyManager.getLobbyWithPlayers(lobbyId);
+    console.log(`[Lobbies API] Successfully joined lobby ${lobbyId}, now has ${updatedLobby.players?.length || 0} players`);
 
     const response: JoinLobbyResponse = {
       success: true,
@@ -274,6 +279,9 @@ router.post('/lobbies/:lobbyId/results', requireAuth, async (req: Request, res: 
         result.team,
         result.won || (winningTeam && result.team === winningTeam)
       );
+      
+      // Update player stats - increment games played
+      await dbQueries.updatePlayerStats(result.walletAddress, result.score);
     }
 
     // Process payouts if it's a paid match

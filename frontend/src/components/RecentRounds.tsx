@@ -9,6 +9,8 @@ interface Round {
   teams: string[];
   winnersCount: number;
   playerCount: number;
+  winnerAvatars?: string[];
+  winningTeam?: string | null;
 }
 
 interface RecentRoundsProps {
@@ -88,6 +90,27 @@ export function RecentRounds({ apiClient }: RecentRoundsProps) {
                       {team.toUpperCase()}
                     </span>
                   ))}
+                </div>
+                <div className="round-winners">
+                  {round.winnerAvatars && round.winnerAvatars.length > 0 ? (
+                    <div className="winner-avatars">
+                      {round.winnerAvatars.slice(0, 3).map((avatar, index) => (
+                        <img
+                          key={index}
+                          src={avatar}
+                          alt={`Winner ${index + 1}`}
+                          className="winner-avatar"
+                          onError={(e) => {
+                            // Hide broken images
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ))}
+                      {round.winnersCount > 3 && (
+                        <span className="winner-more">+{round.winnersCount - 3} more</span>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="round-stats">
                   <span>{round.playerCount} players</span>
