@@ -341,6 +341,43 @@ function App() {
     setProfileLoaded(true);
   };
 
+  // Check Google auth users and prompt for username setup
+  useEffect(() => {
+    const googleToken = localStorage.getItem('google_auth_token');
+    const googleAddress = localStorage.getItem('google_auth_address');
+    const isGoogleAuth = googleToken && googleAddress;
+    
+    if (isGoogleAuth && !profileLoaded && !authenticating && !showFirstTimeSetup) {
+      let cancelled = false;
+      const checkGoogleProfile = async () => {
+        try {
+          const profile = await apiClient.getProfile();
+          if (!cancelled) {
+            setProfileLoaded(true);
+            if (!profile.username) {
+              setShowFirstTimeSetup(true);
+            }
+          }
+        } catch (error: any) {
+          if (cancelled) return;
+          console.error('Failed to load Google auth profile:', error);
+          setProfileLoaded(true);
+        }
+      };
+      
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) {
+          checkGoogleProfile();
+        }
+      }, 100);
+      
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [profileLoaded, authenticating, showFirstTimeSetup, apiClient]);
+
   // Redirect to profile after wallet connects (for wallet logins, not Google)
   useEffect(() => {
     // Only redirect if:
@@ -443,13 +480,16 @@ function App() {
     );
   }
 
-  // Show first-time setup modal if needed
-  if (showFirstTimeSetup && address) {
+  // Show first-time setup modal if needed (for wallet users or Google auth users)
+  const googleAddress = localStorage.getItem('google_auth_address');
+  const showSetup = showFirstTimeSetup && (address || googleAddress);
+  
+  if (showSetup) {
     return (
       <div className="app">
         <FirstTimeSetup
           apiClient={apiClient}
-          walletAddress={address}
+          walletAddress={address || googleAddress || ''}
           onComplete={handleFirstTimeSetupComplete}
         />
       </div>

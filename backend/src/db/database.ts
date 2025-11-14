@@ -91,6 +91,11 @@ async function initializeSchema() {
       console.log('[Database] Adding auth_type column...');
       await db.execute(`ALTER TABLE players ADD COLUMN auth_type TEXT DEFAULT 'solana'`);
     }
+    
+    if (!columns.includes('last_username_change')) {
+      console.log('[Database] Adding last_username_change column...');
+      await db.execute(`ALTER TABLE players ADD COLUMN last_username_change DATETIME`);
+    }
   } catch (e: any) {
     console.error('[Database] Error adding Google auth columns:', e.message);
     // Try individual ALTER statements as fallback (without UNIQUE)
@@ -341,6 +346,7 @@ export interface PlayerRow {
   encrypted_private_key: string | null;
   voice_enabled: number | null;
   push_to_talk_key: string | null;
+  last_username_change: string | null;
 }
 
 export interface InGameWalletRow {
@@ -417,6 +423,7 @@ export const dbQueries = {
         encrypted_private_key: row.encrypted_private_key as string | null,
         voice_enabled: (row.voice_enabled as number | null) ?? null,
         push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
+        last_username_change: (row.last_username_change as string | null) ?? null,
       };
     }
 
@@ -441,6 +448,7 @@ export const dbQueries = {
       encrypted_private_key: row.encrypted_private_key as string | null,
       voice_enabled: (row.voice_enabled as number | null) ?? null,
       push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
+      last_username_change: (row.last_username_change as string | null) ?? null,
     };
   },
 
@@ -465,6 +473,7 @@ export const dbQueries = {
       encrypted_private_key: row.encrypted_private_key as string | null,
       voice_enabled: (row.voice_enabled as number | null) ?? null,
       push_to_talk_key: (row.push_to_talk_key as string | null) ?? null,
+      last_username_change: (row.last_username_change as string | null) ?? null,
     };
   },
 
@@ -505,14 +514,38 @@ export const dbQueries = {
       if (!isAvailable) {
         throw new Error('Username is already taken');
       }
+      
+      // Check if username is being changed (not just set for first time)
+      const currentPlayer = await dbQueries.getOrCreatePlayer(walletAddress);
+      if (currentPlayer.username && currentPlayer.username !== username.trim()) {
+        // Username is being changed - check if user changed it within last 24 hours
+        if (currentPlayer.last_username_change) {
+          const lastChange = new Date(currentPlayer.last_username_change);
+          const now = new Date();
+          const hoursSinceChange = (now.getTime() - lastChange.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursSinceChange < 24) {
+            const hoursRemaining = Math.ceil(24 - hoursSinceChange);
+            throw new Error(`You can only change your username once per day. Please try again in ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''}.`);
+          }
+        }
+      }
     }
 
     const updates: string[] = [];
     const args: any[] = [];
 
     if (username !== undefined) {
-      updates.push('username = ?');
-      args.push(username.trim());
+      const currentPlayer = await dbQueries.getOrCreatePlayer(walletAddress);
+      // Only update last_username_change if username is actually changing
+      if (currentPlayer.username && currentPlayer.username !== username.trim()) {
+        updates.push('username = ?');
+        updates.push('last_username_change = CURRENT_TIMESTAMP');
+        args.push(username.trim());
+      } else {
+        updates.push('username = ?');
+        args.push(username.trim());
+      }
     }
     if (avatarUrl !== undefined) {
       updates.push('avatar_url = ?');
