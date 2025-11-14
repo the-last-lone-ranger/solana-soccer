@@ -256,3 +256,4 @@ export function WalletDialog({ apiClient, isOpen, onClose }: WalletDialogProps) 
 }
 
 
+

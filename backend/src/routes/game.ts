@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { dbQueries } from '../db/database.js';
+import db from '../db/database.js';
 import { requireAuth } from '../middleware/openkit.js';
 import { checkTokenOwnership, TokenGateConfig, verifySolTransfer, getSolBalance, checkKickItTokenHolder } from '../services/solana.js';
 import { generateItemDrop } from '../services/items.js';

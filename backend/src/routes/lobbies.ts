@@ -237,6 +237,7 @@ router.post('/lobbies/:lobbyId/join', requireAuth, async (req: Request, res: Res
       lobby: {
         id: updatedLobby.id,
         betAmountSol: updatedLobby.betAmountSol,
+        gameType: updatedLobby.gameType || GameType.Soccer,
         status: updatedLobby.status as LobbyStatus,
         players: updatedLobby.players,
         maxPlayers: updatedLobby.maxPlayers,
