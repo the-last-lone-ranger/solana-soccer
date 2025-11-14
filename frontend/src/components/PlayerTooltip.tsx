@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ApiClient } from '../services/api.js';
 import './PlayerTooltip.css';
 
@@ -70,28 +70,61 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
     setShowTooltip(false);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const updateTooltipPosition = useCallback(() => {
     if (!showTooltip || !tooltipRef.current || !triggerRef.current) return;
 
     const tooltip = tooltipRef.current;
     const trigger = triggerRef.current;
     const rect = trigger.getBoundingClientRect();
+    const tooltipHeight = tooltip.offsetHeight || 200; // Fallback height
+    const tooltipWidth = tooltip.offsetWidth || 250; // Fallback width
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    const padding = 10;
     
-    // Position tooltip above the trigger, centered
-    let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
-    let top = rect.top - tooltip.offsetHeight - 8;
+    // Calculate preferred position (above, centered)
+    let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+    let top = rect.top - tooltipHeight - 8;
 
-    // Adjust if tooltip goes off screen
-    if (left < 10) left = 10;
-    if (left + tooltip.offsetWidth > window.innerWidth - 10) {
-      left = window.innerWidth - tooltip.offsetWidth - 10;
+    // Adjust horizontal position if tooltip goes off screen
+    if (left < padding) {
+      left = padding;
+    } else if (left + tooltipWidth > viewportWidth - padding) {
+      left = viewportWidth - tooltipWidth - padding;
     }
-    if (top < 10) {
-      // Show below instead
+
+    // Adjust vertical position - check if tooltip fits above
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    
+    if (spaceAbove >= tooltipHeight + 8) {
+      // Enough space above - position above
+      top = rect.top - tooltipHeight - 8;
+    } else if (spaceBelow >= tooltipHeight + 8) {
+      // Not enough space above, but enough below - position below
       top = rect.bottom + 8;
+    } else {
+      // Not enough space either way - position where it fits best
+      if (spaceBelow > spaceAbove) {
+        // More space below, position below but constrain to viewport
+        top = rect.bottom + 8;
+        if (top + tooltipHeight > viewportHeight - padding) {
+          top = viewportHeight - tooltipHeight - padding;
+        }
+      } else {
+        // More space above, position above but constrain to viewport
+        top = rect.top - tooltipHeight - 8;
+        if (top < padding) {
+          top = padding;
+        }
+      }
     }
 
     setTooltipPosition({ top, left });
+  }, [showTooltip]);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    updateTooltipPosition();
   };
 
   const getRarityColor = (rarity: string): string => {
@@ -118,6 +151,17 @@ export function PlayerTooltip({ walletAddress, apiClient, children }: PlayerTool
       }
     };
   }, []);
+
+  // Update tooltip position when it becomes visible or content changes
+  useEffect(() => {
+    if (showTooltip) {
+      // Small delay to ensure tooltip is rendered and has dimensions
+      const timer = setTimeout(() => {
+        updateTooltipPosition();
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [showTooltip, equippedItems, loading, updateTooltipPosition]);
 
   return (
     <div

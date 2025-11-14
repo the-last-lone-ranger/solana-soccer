@@ -17,6 +17,8 @@
   padding: 0.75rem;
   min-width: 200px;
   max-width: 300px;
+  max-height: 70vh;
+  overflow-y: auto;
   pointer-events: none;
   animation: fadeInTooltip 0.2s ease-out;
 }
@@ -55,6 +57,8 @@
 
 .tooltip-content {
   min-height: 40px;
+  max-height: calc(70vh - 80px);
+  overflow-y: auto;
 }
 
 .tooltip-loading,
