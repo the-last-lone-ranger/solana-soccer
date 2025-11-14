@@ -253,7 +253,7 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   font-size: 0.9375rem;
   font-weight: 600;
   transition: all var(--transition-base);
@@ -261,6 +261,16 @@
   overflow-wrap: break-word;
   touch-action: manipulation;
   white-space: nowrap;
+}
+
+/* Ensure feature item text is readable in dark mode */
+.feature-item span:not(.feature-icon) {
+  color: inherit;
+}
+
+[data-theme='dark'] .feature-item,
+[data-theme='dark'] .feature-item span:not(.feature-icon) {
+  color: var(--text-primary) !important;
 }
 
 .feature-item:hover {

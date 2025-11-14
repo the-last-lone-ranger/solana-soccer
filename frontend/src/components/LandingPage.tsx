@@ -84,8 +84,8 @@ export function LandingPage() {
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="feature-icon">⚡</span>
-              <span>Instant Wallet Auth</span>
+              <span className="feature-icon">🎙️</span>
+              <span>In Game Voice Chat</span>
             </motion.div>
             <motion.div
               className="feature-item"

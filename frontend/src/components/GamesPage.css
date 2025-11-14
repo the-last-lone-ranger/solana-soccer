@@ -235,7 +235,7 @@
   align-items: center;
   gap: 0.75rem;
   font-size: 1rem;
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .feature-icon {
@@ -321,7 +321,7 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0 0 0.25rem 0;
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .powerup-rarity {
@@ -360,7 +360,7 @@
 }
 
 .detail-value {
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -396,7 +396,7 @@
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .info-card-text {
@@ -407,7 +407,7 @@
 }
 
 .info-card-text strong {
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -439,7 +439,7 @@
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: var(--text-color, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .tip-card p {
