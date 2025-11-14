@@ -9,3 +9,15 @@ build/
 *.sqlite
 *.sqlite3
 
+# Deployment docs with sensitive info
+DEPLOYMENT.md
+DEPLOY_NOW.md
+DEPLOY_QUICKSTART.md
+GOOGLE_AUTH_SETUP.md
+RAILWAY_DEPLOY.md
+RENDER_DEPLOY.md
+RENDER_FIX.md
+SIMPLE_DEPLOY.md
+VERCEL_DEPLOYMENT.md
+VOICE_CHAT_TESTING.md
+
